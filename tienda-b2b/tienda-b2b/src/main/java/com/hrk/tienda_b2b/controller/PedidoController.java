@@ -180,6 +180,54 @@ public class PedidoController {
         }
     }
 
+    @PostMapping("/{pedidoId}/confirmar")
+    public ResponseEntity<?> confirmarPedido(@PathVariable Long pedidoId) {
+        try {
+            System.out.println("🔵 [PEDIDO CONTROLLER] Confirmando pedido: " + pedidoId);
+            
+            Pedido pedido = pedidoService.confirmarPedido(pedidoId);
+            PedidoResponseDTO responseDTO = convertirPedidoADTO(pedido, null);
+            
+            System.out.println("✅ [PEDIDO CONTROLLER] Pedido confirmado exitosamente");
+            return ResponseEntity.ok(responseDTO);
+            
+        } catch (IllegalArgumentException e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Pedido no encontrado: " + e.getMessage());
+            return ResponseEntity.status(404).body(crearRespuestaError("Pedido no encontrado: " + e.getMessage()));
+        } catch (IllegalStateException e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Estado inválido: " + e.getMessage());
+            return ResponseEntity.status(400).body(crearRespuestaError("Estado inválido: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Error al confirmar pedido: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(crearRespuestaError("Error al confirmar pedido: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{pedidoId}/cancelar")
+    public ResponseEntity<?> cancelarPedido(@PathVariable Long pedidoId) {
+        try {
+            System.out.println("🔵 [PEDIDO CONTROLLER] Cancelando pedido: " + pedidoId);
+            
+            Pedido pedido = pedidoService.cancelarPedido(pedidoId);
+            PedidoResponseDTO responseDTO = convertirPedidoADTO(pedido, null);
+            
+            System.out.println("✅ [PEDIDO CONTROLLER] Pedido cancelado exitosamente");
+            return ResponseEntity.ok(responseDTO);
+            
+        } catch (IllegalArgumentException e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Pedido no encontrado: " + e.getMessage());
+            return ResponseEntity.status(404).body(crearRespuestaError("Pedido no encontrado: " + e.getMessage()));
+        } catch (IllegalStateException e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Estado inválido: " + e.getMessage());
+            return ResponseEntity.status(400).body(crearRespuestaError("Estado inválido: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Error al cancelar pedido: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(crearRespuestaError("Error al cancelar pedido: " + e.getMessage()));
+        }
+    }
+
     private Map<String, String> crearRespuestaError(String mensaje) {
         Map<String, String> error = new HashMap<>();
         error.put("error", mensaje);

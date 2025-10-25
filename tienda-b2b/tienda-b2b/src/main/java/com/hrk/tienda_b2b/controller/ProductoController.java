@@ -54,6 +54,15 @@ public class ProductoController {
             System.out.println("🔵 [CONTROLLER] Stock: " + request.getStock());
             System.out.println("🔵 [CONTROLLER] Descripción: " + request.getDescripcion());
             System.out.println("🔵 [CONTROLLER] Imagen URL: " + request.getImagenUrl());
+            System.out.println("🔵 [CONTROLLER] 🔍 STOCK POR VARIANTE RECIBIDO:");
+            System.out.println("🔵 [CONTROLLER] - Es null?: " + (request.getStockPorVariante() == null));
+            System.out.println("🔵 [CONTROLLER] - Contenido: " + request.getStockPorVariante());
+            if (request.getStockPorVariante() != null) {
+                System.out.println("🔵 [CONTROLLER] - Tamaño del mapa: " + request.getStockPorVariante().size());
+                request.getStockPorVariante().forEach((clave, stock) -> {
+                    System.out.println("🔵 [CONTROLLER]   " + clave + " -> " + stock);
+                });
+            }
             System.out.println("=================================================");
             
             // Validar datos básicos

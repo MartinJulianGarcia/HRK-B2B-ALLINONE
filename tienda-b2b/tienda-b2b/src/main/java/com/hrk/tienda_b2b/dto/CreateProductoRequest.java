@@ -5,6 +5,7 @@ import com.hrk.tienda_b2b.model.TipoProducto;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class CreateProductoRequest {
@@ -18,6 +19,9 @@ public class CreateProductoRequest {
     private Integer stock;
     private String descripcion;
     private String imagenUrl; // URL de la imagen subida
+    
+    // Nuevo: Stock por variante (color-talle -> stock)
+    private Map<String, Integer> stockPorVariante;
 }
 
 

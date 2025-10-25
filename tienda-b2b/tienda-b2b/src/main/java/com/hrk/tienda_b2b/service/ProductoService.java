@@ -50,6 +50,9 @@ public class ProductoService {
     @Transactional
     public Producto crearProducto(CreateProductoRequest request) {
         System.out.println("🔵 [SERVICE] Creando producto con request: " + request);
+        System.out.println("🔵 [SERVICE] Stock por variante recibido: " + request.getStockPorVariante());
+        System.out.println("🔵 [SERVICE] ¿Es null stockPorVariante?: " + (request.getStockPorVariante() == null));
+        System.out.println("🔵 [SERVICE] ¿Está vacío stockPorVariante?: " + (request.getStockPorVariante() != null && request.getStockPorVariante().isEmpty()));
         
         // Validar que colores y talles no estén vacíos
         if (request.getColores() == null || request.getColores().isEmpty()) {
@@ -84,28 +87,24 @@ public class ProductoService {
         System.out.println("🔵 [SERVICE] Producto guardado con ID: " + producto.getId());
         
         // 4. Crear las variantes para cada combinación de color y talle
-        // Calcular el total de variantes considerando talles divididos (ej: "1/2" = 2 talles)
-        int totalTalles = 0;
-        for (String talle : request.getTalles()) {
-            if (talle.contains("/")) {
-                totalTalles += talle.split("/").length;
-            } else {
-                totalTalles += 1;
-            }
-        }
-        int totalVariantes = request.getColores().size() * totalTalles;
-        int stockPorVariante = request.getStock() / totalVariantes;
+        boolean usarStockIndividual = request.getStockPorVariante() != null && !request.getStockPorVariante().isEmpty();
+        System.out.println("🔵 [SERVICE] Creando variantes - Usar stock individual: " + usarStockIndividual);
         
-        System.out.println("🔵 [SERVICE] Creando " + totalVariantes + " variantes con stock " + stockPorVariante + " cada una");
+        if (usarStockIndividual) {
+            System.out.println("🔵 [SERVICE] 📋 MAPA DE STOCK INDIVIDUAL RECIBIDO:");
+            request.getStockPorVariante().forEach((clave, stock) -> {
+                System.out.println("🔵 [SERVICE]   " + clave + " -> " + stock);
+            });
+        }
         
         for (String color : request.getColores()) {
-            for (String talle : request.getTalles()) {
+            for (String talleOriginal : request.getTalles()) {
                 // Si el talle contiene "/", dividirlo en talles individuales
                 String[] tallesIndividuales;
-                if (talle.contains("/")) {
-                    tallesIndividuales = talle.split("/");
+                if (talleOriginal.contains("/")) {
+                    tallesIndividuales = talleOriginal.split("/");
                 } else {
-                    tallesIndividuales = new String[]{talle};
+                    tallesIndividuales = new String[]{talleOriginal};
                 }
                 
                 // Validar que no se mezclen talles numéricos con "U" (Único)
@@ -136,13 +135,45 @@ public class ProductoService {
                     
                     String skuVariante = generarSku(request.getSku(), color, talleLimpio);
                     
+                    // Obtener stock individual para esta variante
+                    String claveVariante = color + "-" + talleLimpio;
+                    Integer stockIndividual = 0;
+                    
+                    System.out.println("🔵 [SERVICE] Buscando stock para clave: " + claveVariante);
+                    System.out.println("🔵 [SERVICE] Stock por variante disponible: " + request.getStockPorVariante());
+                    
+                    if (usarStockIndividual && request.getStockPorVariante().containsKey(claveVariante)) {
+                        stockIndividual = request.getStockPorVariante().get(claveVariante);
+                        System.out.println("🔵 [SERVICE] ✅ Stock individual encontrado para " + claveVariante + ": " + stockIndividual);
+                    } else if (usarStockIndividual) {
+                        // Si se debe usar stock individual pero no se encuentra la clave, usar 0
+                        stockIndividual = 0;
+                        System.out.println("🔵 [SERVICE] ⚠️ Clave no encontrada en stock individual para " + claveVariante + ", usando 0");
+                    } else {
+                        // Si no hay stock individual, usar distribución igualitaria como fallback
+                        System.out.println("🔵 [SERVICE] ⚠️ No se encontró stock individual para " + claveVariante + ", usando distribución igualitaria");
+                        int totalTalles = 0;
+                        for (String talleItem : request.getTalles()) {
+                            if (talleItem.contains("/")) {
+                                totalTalles += talleItem.split("/").length;
+                            } else {
+                                totalTalles += 1;
+                            }
+                        }
+                        int totalVariantes = request.getColores().size() * totalTalles;
+                        stockIndividual = request.getStock() / totalVariantes;
+                        System.out.println("🔵 [SERVICE] Usando distribución igualitaria para " + claveVariante + ": " + stockIndividual);
+                    }
+                    
+                    System.out.println("🔵 [SERVICE] 🎯 ASIGNANDO STOCK FINAL para " + claveVariante + ": " + stockIndividual);
+                    
                     ProductoVariante variante = ProductoVariante.builder()
                         .producto(producto)
                         .sku(skuVariante)
                         .color(color)
                         .talle(talleLimpio)
                         .precio(request.getPrecio())
-                        .stockDisponible(stockPorVariante)
+                        .stockDisponible(stockIndividual)
                         .build();
                     
                     producto.getVariantes().add(variante);

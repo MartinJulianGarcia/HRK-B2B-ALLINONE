@@ -163,4 +163,49 @@ public class PedidoServiceImpl implements PedidoService {
         p.setEstado(EstadoPedido.CANCELADO);
         return pedidoRepo.save(p);
     }
+
+    @Override
+    @Transactional
+    public Pedido confirmarPedido(Long pedidoId) {
+        System.out.println("🔵 [BACKEND] Confirmando pedido: " + pedidoId);
+        
+        Pedido pedido = pedidoRepo.findById(pedidoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con ID: " + pedidoId));
+        
+        // Verificar que el pedido esté en estado válido para confirmar
+        if (pedido.getEstado() != EstadoPedido.BORRADOR && 
+            pedido.getEstado() != EstadoPedido.DOCUMENTADO && 
+            pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+            throw new IllegalStateException("No se puede confirmar un pedido en estado: " + pedido.getEstado());
+        }
+        
+        pedido.setEstado(EstadoPedido.ENTREGADO);
+        return pedidoRepo.save(pedido);
+    }
+
+    @Override
+    @Transactional
+    public Pedido cancelarPedido(Long pedidoId) {
+        System.out.println("🔵 [BACKEND] Cancelando pedido: " + pedidoId);
+        
+        Pedido pedido = pedidoRepo.findById(pedidoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con ID: " + pedidoId));
+        
+        // Verificar que el pedido esté en estado válido para cancelar
+        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
+            throw new IllegalStateException("El pedido ya está cancelado");
+        }
+        
+        // TEMPORAL: Permitir cancelar pedidos entregados para testing
+        // TODO: Remover esta validación en producción
+        if (pedido.getEstado() == EstadoPedido.ENTREGADO) {
+            System.out.println("⚠️ [BACKEND] ADVERTENCIA: Cancelando pedido ya entregado (solo para testing)");
+        }
+        
+        // Log del estado actual para debugging
+        System.out.println("🔵 [BACKEND] Estado actual del pedido: " + pedido.getEstado());
+        
+        pedido.setEstado(EstadoPedido.CANCELADO);
+        return pedidoRepo.save(pedido);
+    }
 }

@@ -8,5 +8,7 @@ public interface PedidoService {
     Pedido agregarItem(Long pedidoId, Long varianteId, int cantidad);
     Pedido confirmar(Long pedidoId);
     Pedido cancelar(Long pedidoId);
+    Pedido confirmarPedido(Long pedidoId); // Para marcar como ENTREGADO
+    Pedido cancelarPedido(Long pedidoId); // Para marcar como CANCELADO
     List<Pedido> obtenerPedidosPorCliente(Long clienteId);
 }
