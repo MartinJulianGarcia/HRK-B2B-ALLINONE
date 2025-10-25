@@ -11,4 +11,6 @@ public interface PedidoService {
     Pedido confirmarPedido(Long pedidoId); // Para marcar como ENTREGADO
     Pedido cancelarPedido(Long pedidoId); // Para marcar como CANCELADO
     List<Pedido> obtenerPedidosPorCliente(Long clienteId);
+    Pedido obtenerPedidoPorId(Long pedidoId); // ⭐ NUEVO: Obtener pedido por ID
+    List<Pedido> obtenerTodosLosPedidos(); // ⭐ NUEVO: Obtener todos los pedidos
 }

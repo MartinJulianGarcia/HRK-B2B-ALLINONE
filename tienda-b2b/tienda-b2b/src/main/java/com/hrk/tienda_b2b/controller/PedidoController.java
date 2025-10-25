@@ -106,6 +106,57 @@ public class PedidoController {
         }
     }
 
+    @GetMapping("/todos")
+    public ResponseEntity<?> obtenerTodosLosPedidos() {
+        System.out.println("🔵 [PEDIDO CONTROLLER] Obteniendo todos los pedidos");
+
+        try {
+            // Obtener todos los pedidos
+            List<Pedido> pedidos = pedidoService.obtenerTodosLosPedidos();
+
+            // Convertir a DTOs
+            List<PedidoResponseDTO> pedidosDTO = pedidos.stream()
+                    .map(pedido -> convertirPedidoADTO(pedido, null))
+                    .collect(Collectors.toList());
+
+            System.out.println("✅ [PEDIDO CONTROLLER] Encontrados " + pedidos.size() + " pedidos en total");
+
+            return ResponseEntity.ok(pedidosDTO);
+
+        } catch (Exception e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Error al obtener todos los pedidos: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(crearRespuestaError("Error al obtener todos los pedidos: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{pedidoId}")
+    public ResponseEntity<?> obtenerPedidoPorId(@PathVariable Long pedidoId) {
+        System.out.println("🔵 [PEDIDO CONTROLLER] Obteniendo pedido por ID: " + pedidoId);
+
+        try {
+            // Buscar el pedido por ID
+            Pedido pedido = pedidoService.obtenerPedidoPorId(pedidoId);
+            
+            if (pedido == null) {
+                System.out.println("🔴 [PEDIDO CONTROLLER] Pedido no encontrado: " + pedidoId);
+                return ResponseEntity.status(404).body(crearRespuestaError("Pedido no encontrado"));
+            }
+
+            // Convertir a DTO
+            PedidoResponseDTO pedidoDTO = convertirPedidoADTO(pedido, null);
+
+            System.out.println("✅ [PEDIDO CONTROLLER] Pedido encontrado: " + pedido.getId());
+
+            return ResponseEntity.ok(pedidoDTO);
+
+        } catch (Exception e) {
+            System.out.println("🔴 [PEDIDO CONTROLLER] Error al obtener pedido: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(crearRespuestaError("Error al obtener pedido: " + e.getMessage()));
+        }
+    }
+
     // Método helper para convertir Pedido a PedidoResponseDTO
     private PedidoResponseDTO convertirPedidoADTO(Pedido pedido, CreatePedidoRequest.UsuarioInfoDTO usuarioInfo) {
         try {

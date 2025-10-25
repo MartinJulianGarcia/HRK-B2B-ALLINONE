@@ -208,4 +208,18 @@ public class PedidoServiceImpl implements PedidoService {
         pedido.setEstado(EstadoPedido.CANCELADO);
         return pedidoRepo.save(pedido);
     }
+
+    @Override
+    public Pedido obtenerPedidoPorId(Long pedidoId) {
+        System.out.println("🔵 [BACKEND] Obteniendo pedido por ID: " + pedidoId);
+        
+        return pedidoRepo.findById(pedidoId).orElse(null);
+    }
+
+    @Override
+    public List<Pedido> obtenerTodosLosPedidos() {
+        System.out.println("🔵 [BACKEND] Obteniendo todos los pedidos");
+        
+        return pedidoRepo.findAll();
+    }
 }
