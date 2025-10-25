@@ -1,0 +1,36 @@
+package com.hrk.tienda_b2b.model;
+
+public enum Categoria {
+    REMERA("Remera"),
+    MUSCULOSA("Musculosa"),
+    PANTALON("Pantalon"),
+    SHORT("Short"),
+    CARDIGAN("Cardigan"),
+    RUANA("Ruana"),
+    SWEATER("Sweater"),
+    BUFANDA("Bufanda"),
+    GORRO("Gorro"),
+    TAPADO("Tapado"),
+    CAPA("Capa"),
+    SACO("Saco"),
+    BLUSA("Blusa"),
+    MONO("Mono"),
+    VESTIDO("Vestido"),
+    BUZO("Buzo"),
+    MITONES("Mitones"),
+    CAMPERA("Campera"),
+    TOP("Top"),
+    CHALECO("Chaleco");
+
+    private final String displayName;
+
+    Categoria(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+}
+
+

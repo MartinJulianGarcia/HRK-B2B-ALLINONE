@@ -1,0 +1,123 @@
+package com.hrk.tienda_b2b.controller;
+
+import com.hrk.tienda_b2b.dto.AuthResponse;
+import com.hrk.tienda_b2b.dto.LoginRequest;
+import com.hrk.tienda_b2b.dto.RegisterRequest;
+import com.hrk.tienda_b2b.dto.UsuarioDTO;
+import com.hrk.tienda_b2b.model.Usuario;
+import com.hrk.tienda_b2b.security.JwtService;
+import com.hrk.tienda_b2b.service.UsuarioService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/auth")
+@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
+@Slf4j // ✅ Agregar logging
+public class AuthController {
+    private final UsuarioService usuarioService;
+    private final JwtService jwtService;
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        log.info("🔵 Iniciando registro para email: {}", request.getEmail());
+
+        try {
+            // ✅ Log del request
+            log.info("🔵 Datos recibidos - Email: {}, CUIT: {}, Nombre: {}",
+                    request.getEmail(), request.getCuit(), request.getNombreRazonSocial());
+
+            // ✅ Registrar usuario
+            Usuario usuario = usuarioService.registrar(request);
+            log.info("🟢 Usuario registrado exitosamente - ID: {}, Email: {}",
+                    usuario.getId(), usuario.getEmail());
+
+            // ✅ Generar token
+            String token = jwtService.generateToken(usuario);
+            log.info("🟢 Token generado exitosamente - Longitud: {}", token.length());
+
+            // ✅ Crear DTO
+            UsuarioDTO usuarioDTO = UsuarioDTO.fromEntity(usuario);
+            log.info("🟢 DTO creado exitosamente - ID: {}, Email: {}",
+                    usuarioDTO.getId(), usuarioDTO.getEmail());
+
+            // ✅ Crear respuesta
+            AuthResponse response = AuthResponse.builder()
+                    .token(token)
+                    .usuario(usuarioDTO)
+                    .build();
+
+            log.info("🟢 Respuesta creada exitosamente - Token presente: {}, Usuario presente: {}",
+                    response.getToken() != null, response.getUsuario() != null);
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            log.error("🔴 Error de validación: {}", e.getMessage());
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("error", "VALIDATION_ERROR");
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            log.error("🔴 Error interno: {}", e.getMessage(), e);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Error interno del servidor: " + e.getMessage());
+            errorResponse.put("error", "INTERNAL_ERROR");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        log.info("🔵 Iniciando login para email: {}", request.getEmail());
+
+        try {
+            Usuario usuario = usuarioService.login(request);
+            String token = jwtService.generateToken(usuario);
+            AuthResponse response = AuthResponse.builder()
+                    .token(token)
+                    .usuario(UsuarioDTO.fromEntity(usuario))
+                    .build();
+
+            log.info("🟢 Login exitoso para email: {}", request.getEmail());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.error("🔴 Error de login: {}", e.getMessage());
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("error", "AUTH_ERROR");
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            log.error("🔴 Error interno en login: {}", e.getMessage(), e);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Error interno del servidor: " + e.getMessage());
+            errorResponse.put("error", "INTERNAL_ERROR");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String token) {
+        try {
+            String email = jwtService.extractUsername(token.substring(7));
+            Usuario usuario = usuarioService.obtenerPorEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+            return ResponseEntity.ok(UsuarioDTO.fromEntity(usuario));
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Token inválido o usuario no encontrado");
+            errorResponse.put("error", "AUTH_ERROR");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+}
+
+
+

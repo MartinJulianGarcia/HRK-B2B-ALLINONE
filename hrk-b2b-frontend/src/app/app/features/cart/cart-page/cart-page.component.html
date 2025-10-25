@@ -1,0 +1,218 @@
+<div class="cart-container">
+  <!-- Header negro con logo y navegación -->
+  <div class="cart-header">
+    <div class="header-left">
+      <div class="logo" (click)="goToCatalog()">
+        <div class="logo-symbol">
+          <img src="/HIRKUM-MONOGRAMA-B.jpg" alt="HIRKUM Logo" class="logo-image">
+        </div>
+        <span>HRK</span>
+      </div>
+      <nav class="main-nav">
+        <a (click)="goToCatalog()" class="nav-item">SHOP</a>
+        <a (click)="goToCatalog()" class="nav-item sale">SALE</a>
+        <a (click)="goToInfo()" class="nav-item info">info</a>
+      </nav>
+    </div>
+    
+    <div class="header-right">
+      <button class="icon-btn cart-icon active" title="Carrito">
+        🛒
+        <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+      </button>
+      <button class="icon-btn search-icon" title="Buscar" (click)="openSearchModal()">
+        🔍
+      </button>
+      <button class="icon-btn history-btn" title="Historial de Pedidos" (click)="goToHistory()">
+        📋
+      </button>
+      <button class="icon-btn user-icon" title="Perfil de Usuario" (click)="goToProfile()">
+        <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img">
+      </button>
+      <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <div class="cart-content">
+    <h2>Carrito de Compras</h2>
+  
+  <!-- Items del carrito -->
+  <div *ngIf="carritoItems.length > 0; else emptyCart" class="cart-items">
+    <div class="cart-header">
+      <h3>Items en el carrito ({{ cantidadItems }})</h3>
+    </div>
+    
+    <div class="items-list">
+      <div *ngFor="let item of carritoItems" class="cart-item" [attr.data-item-id]="item.id">
+        <div class="item-info">
+          <h4>{{ item.productoNombre }}</h4>
+          <p>{{ item.color }} - Talle {{ item.talle }}</p>
+          <p>SKU: {{ item.sku }}</p>
+        </div>
+        <div class="item-quantity">
+          <label for="cantidad-{{ item.id }}">Cantidad:</label>
+          <input 
+            type="number" 
+            id="cantidad-{{ item.id }}"
+            [value]="item.cantidad" 
+            min="1" 
+            max="999"
+            (input)="actualizarCantidad(item.id, $event)"
+            class="quantity-input"
+          />
+        </div>
+        <div class="item-price">
+          <span class="unit-price">{{ item.precioUnitario | currency:'ARS' }} c/u</span>
+          <span class="subtotal">{{ item.subtotal | currency:'ARS' }}</span>
+        </div>
+        <div class="item-actions">
+          <button 
+            (click)="eliminarItem(item.id)" 
+            class="btn-remove"
+            title="Eliminar del carrito"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="cart-total">
+      <div class="total-line">
+        <span>Total: {{ totalCarrito | currency:'ARS' }}</span>
+      </div>
+    </div>
+    
+    <div class="cart-actions">
+      <button (click)="generarPedido()" class="btn-primary">
+        Generar Nota de Pedido
+      </button>
+    </div>
+  </div>
+  
+  <!-- Carrito vacío -->
+  <ng-template #emptyCart>
+    <div class="empty-cart">
+      <h3>Tu carrito está vacío</h3>
+      <p>Agrega productos desde el catálogo</p>
+      <a routerLink="/catalog" class="btn-primary">Ir al Catálogo</a>
+    </div>
+  </ng-template>
+
+  <!-- Pedido generado -->
+  <div *ngIf="pedido as ped" class="pedido-section">
+    <h3>Pedido #{{ ped.id }} ({{ ped.estado }})</h3>
+    
+    <!-- Información del usuario -->
+    <div *ngIf="ped.usuario" class="usuario-info">
+      <h4>Información del Cliente</h4>
+      <div class="usuario-details">
+        <div class="usuario-item">
+          <strong>Nombre:</strong> {{ ped.usuario.nombreRazonSocial }}
+        </div>
+        <div *ngIf="ped.usuario.email" class="usuario-item">
+          <strong>Email:</strong> {{ ped.usuario.email }}
+        </div>
+        <div class="usuario-item">
+          <strong>ID Cliente:</strong> {{ ped.clienteId }}
+        </div>
+      </div>
+    </div>
+    
+    <table class="pedido-table">
+      <thead>
+        <tr><th>Variante</th><th>Cant</th><th>P.Unit</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of ped.detalles">
+          <td>{{ d.sku || d.varianteId }}</td>
+          <td>{{ d.cantidad }}</td>
+          <td>{{ d.precioUnitario | currency:'ARS' }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pedido-total">Total: {{ ped.total | currency:'ARS' }}</div>
+    <button (click)="confirmar()"
+            [disabled]="ped.estado!=='DOCUMENTADO' && ped.estado!=='BORRADOR'"
+            class="btn-confirm">
+      Confirmar pedido
+    </button>
+  </div>
+  </div>
+
+  <!-- Modal de método de pago -->
+  <div *ngIf="showPaymentModal" class="modal-overlay" (click)="cancelarPago()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Seleccionar Método de Pago</h3>
+        <button class="modal-close" (click)="cancelarPago()">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <p>Total a pagar: <strong>{{ totalCarrito | currency:'ARS' }}</strong></p>
+        
+        <div class="payment-methods">
+          <h4>Selecciona un método de pago:</h4>
+          
+          <div class="payment-option" *ngFor="let method of paymentMethods">
+            <input 
+              type="radio" 
+              [id]="'payment-' + method.value"
+              [value]="method.value" 
+              [(ngModel)]="selectedPaymentMethod"
+              name="paymentMethod"
+            />
+            <label [for]="'payment-' + method.value">{{ method.label }}</label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="cancelarPago()">Cancelar</button>
+        <button 
+          class="btn-confirm" 
+          (click)="confirmarPedidoConPago()"
+          [disabled]="!selectedPaymentMethod">
+          Confirmar Pedido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de búsqueda -->
+  <div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
+    <div class="search-modal" (click)="$event.stopPropagation()">
+      <div class="search-header">
+        <h3>Buscar en la página</h3>
+        <button class="close-btn" (click)="closeSearchModal()">×</button>
+      </div>
+      <div class="search-input-container">
+        <input 
+          type="text" 
+          [(ngModel)]="searchTerm" 
+          (input)="performSearch()"
+          placeholder="Escribe lo que quieres buscar..."
+          class="search-input"
+          autofocus
+        >
+      </div>
+      <div class="search-results" *ngIf="searchResults.length > 0">
+        <div class="search-result-item" 
+             *ngFor="let result of searchResults" 
+             (click)="scrollToResult(result)">
+          <div class="result-type">{{ result.type === 'producto' ? '🛍️' : '📄' }}</div>
+          <div class="result-content">
+            <div class="result-title">{{ result.title }}</div>
+            <div class="result-description">{{ result.description }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="no-results" *ngIf="searchTerm && searchResults.length === 0">
+        <p>No se encontraron resultados para "{{ searchTerm }}"</p>
+      </div>
+    </div>
+  </div>
+</div>
+

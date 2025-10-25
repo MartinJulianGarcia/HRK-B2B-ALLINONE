@@ -1,0 +1,95 @@
+<div class="info-container">
+  <!-- Header negro con logo y navegación -->
+  <div class="info-header">
+    <div class="header-left">
+      <div class="logo" (click)="goToCatalog()">
+        <div class="logo-symbol">
+          <img src="/HIRKUM-MONOGRAMA-B.jpg" alt="HIRKUM Logo" class="logo-image">
+        </div>
+        <span>HRK</span>
+      </div>
+      <nav class="main-nav">
+        <a (click)="goToCatalog()" class="nav-item">SHOP</a>
+        <a (click)="goToCatalog()" class="nav-item sale">SALE</a>
+        <a (click)="goToInfo()" class="nav-item info active">info</a>
+      </nav>
+    </div>
+    
+    <div class="header-right">
+      <button class="icon-btn cart-icon" title="Carrito" (click)="goToCart()">
+        🛒
+        <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+      </button>
+      <button class="icon-btn search-icon" title="Buscar" (click)="openSearchModal()">
+        🔍
+      </button>
+      <button class="icon-btn history-btn" title="Historial de Pedidos" (click)="goToHistory()">
+        📋
+      </button>
+      <button class="icon-btn user-icon" title="Perfil de Usuario" (click)="goToProfile()">
+        <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img">
+      </button>
+      <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <div class="info-content">
+    <h1>Preguntas Frecuentes</h1>
+    
+    <div class="faq-container">
+      <div class="faq-item">
+        <h2>¿Cómo comprar?</h2>
+        <p>Para realizar un pedido, debe agregarse los elementos del catálogo en talle y color seleccionados. Una vez agregados deberá dirigirse al carrito para verificar y confirmar el pedido.</p>
+        <p>Una copia de su orden de compra será enviada por mail y la misma será compromiso de compra.</p>
+      </div>
+
+      <div class="faq-item">
+        <h2>¿Necesitas ayuda?</h2>
+        <p>Comunícate al <strong>11-3255-0195</strong></p>
+        
+        <div class="whatsapp-container">
+          <button class="whatsapp-btn" (click)="goToWhatsApp()" title="Contactar por WhatsApp">
+            <span class="whatsapp-icon">📱</span>
+            <span>Contactar por WhatsApp</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de búsqueda -->
+  <div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
+    <div class="search-modal" (click)="$event.stopPropagation()">
+      <div class="search-header">
+        <h3>Buscar en la página</h3>
+        <button class="close-btn" (click)="closeSearchModal()">×</button>
+      </div>
+      <div class="search-input-container">
+        <input 
+          type="text" 
+          [(ngModel)]="searchTerm" 
+          (input)="performSearch()"
+          placeholder="Escribe lo que quieres buscar..."
+          class="search-input"
+          autofocus
+        >
+      </div>
+      <div class="search-results" *ngIf="searchResults.length > 0">
+        <div class="search-result-item" 
+             *ngFor="let result of searchResults" 
+             (click)="scrollToResult(result)">
+          <div class="result-type">{{ result.type === 'faq' ? '❓' : '📄' }}</div>
+          <div class="result-content">
+            <div class="result-title">{{ result.title }}</div>
+            <div class="result-description">{{ result.description }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="no-results" *ngIf="searchTerm && searchResults.length === 0">
+        <p>No se encontraron resultados para "{{ searchTerm }}"</p>
+      </div>
+    </div>
+  </div>
+</div>

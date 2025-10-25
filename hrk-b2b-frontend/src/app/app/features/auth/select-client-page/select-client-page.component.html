@@ -1,0 +1,77 @@
+<div class="select-client-container">
+  <div class="select-client-card">
+    <h2>Seleccionar Cliente</h2>
+    <p class="subtitle">Como vendedor, selecciona el cliente para el cual realizarás el pedido</p>
+
+    <div class="search-section">
+      <input 
+        type="text" 
+        placeholder="Buscar cliente por nombre o email..."
+        [(ngModel)]="searchTerm"
+        (input)="filterClients()"
+        class="search-input"
+      >
+    </div>
+
+    <div *ngIf="loading" class="loading">
+      Cargando clientes...
+    </div>
+
+    <div *ngIf="error" class="error-message">
+      {{ error }}
+    </div>
+
+    <div *ngIf="!loading && !error" class="clients-list">
+      <div 
+        *ngFor="let cliente of filteredClients" 
+        class="client-card"
+        [class.selected]="selectedClient?.id === cliente.id"
+        (click)="selectClient(cliente)"
+      >
+        <div class="client-info">
+          <h3>{{ cliente.nombre }}</h3>
+          <p class="client-email">{{ cliente.email }}</p>
+          <div *ngIf="cliente.telefono" class="client-details">
+            <span class="detail-item">📞 {{ cliente.telefono }}</span>
+          </div>
+          <div *ngIf="cliente.direccion" class="client-details">
+            <span class="detail-item">📍 {{ cliente.direccion }}</span>
+          </div>
+        </div>
+        <div class="client-status">
+          <span class="status-badge" [class.active]="cliente.activo">
+            {{ cliente.activo ? 'Activo' : 'Inactivo' }}
+          </span>
+        </div>
+      </div>
+
+      <div *ngIf="filteredClients.length === 0" class="no-results">
+        <p>No se encontraron clientes que coincidan con la búsqueda</p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button 
+        (click)="continueWithSelectedClient()" 
+        [disabled]="!selectedClient"
+        class="btn btn-primary"
+      >
+        Continuar con {{ selectedClient?.nombre || 'Cliente Seleccionado' }}
+      </button>
+      
+      <button 
+        (click)="continueAsClient()" 
+        class="btn btn-secondary"
+      >
+        Continuar como Cliente Directo
+      </button>
+    </div>
+
+    <div class="footer-actions">
+      <button (click)="logout()" class="btn btn-outline">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+</div>
+

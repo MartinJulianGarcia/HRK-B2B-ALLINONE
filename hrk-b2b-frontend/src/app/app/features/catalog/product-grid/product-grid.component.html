@@ -1,0 +1,24 @@
+<table class="grid">
+  <thead>
+    <tr>
+      <th>Color \ Talle</th>
+      <th *ngFor="let t of talles()">{{ t }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let c of colores()">
+      <td class="color">{{ c }}</td>
+      <td *ngFor="let t of talles()">
+        <ng-container *ngIf="findVariante(c,t) as v; else noVar">
+          <input type="number" min="0" [value]="0"
+                 (change)="onChange(c,t,$any($event.target).value)"
+                 [class.over]="false" placeholder="0">
+          <div class="sku">{{ v.sku }}</div>
+          <div class="precio">${{ v.precio }}</div>
+          <div class="stock">Stock: {{ v.stockDisponible }}</div>
+        </ng-container>
+        <ng-template #noVar>—</ng-template>
+      </td>
+    </tr>
+  </tbody>
+</table>

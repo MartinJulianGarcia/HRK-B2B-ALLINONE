@@ -1,0 +1,67 @@
+package com.hrk.tienda_b2b.security;
+
+import com.hrk.tienda_b2b.model.Usuario;
+import com.hrk.tienda_b2b.service.UsuarioService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.Collections;
+
+@Component
+@RequiredArgsConstructor
+public class JwtRequestFilter extends OncePerRequestFilter {
+
+    private final UsuarioService usuarioService;
+    private final JwtService jwtService;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+                                   HttpServletResponse response, 
+                                   FilterChain chain)
+            throws ServletException, IOException {
+
+        final String requestTokenHeader = request.getHeader("Authorization");
+
+        String username = null;
+        String jwtToken = null;
+
+        // JWT Token está en el formato "Bearer token". Remover la palabra Bearer y obtener solo el token
+        if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
+            jwtToken = requestTokenHeader.substring(7);
+            try {
+                username = jwtService.extractUsername(jwtToken);
+            } catch (Exception e) {
+                System.out.println("Error al obtener username del token: " + e.getMessage());
+            }
+        }
+
+        // Una vez que obtenemos el token, validamos
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            Usuario usuario = this.usuarioService.obtenerPorEmail(username).orElse(null);
+
+            // Si el token es válido, configurar Spring Security para establecer la autenticación
+            if (usuario != null && jwtService.isTokenValid(jwtToken, usuario)) {
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        usuario, 
+                        null,
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + usuario.getTipoUsuario().name()))
+                );
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+        }
+        chain.doFilter(request, response);
+    }
+}
+
+

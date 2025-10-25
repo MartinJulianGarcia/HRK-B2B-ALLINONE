@@ -1,0 +1,72 @@
+<div class="profile-container">
+  <!-- Header con navegación -->
+  <div class="profile-header">
+    <button class="back-btn" (click)="goBack()" title="Volver">
+      ←
+    </button>
+    <h1 class="page-title">Mi Perfil</h1>
+  </div>
+
+  <!-- Separador -->
+  <div class="separator"></div>
+
+  <!-- Contenido principal -->
+  <div class="profile-content">
+    <!-- Tarjeta superior: Resumen del perfil y acciones -->
+    <div class="profile-card">
+      <div class="profile-info">
+        <div class="profile-icon">
+          <div class="user-avatar">
+            <img src="/images/profile/default-user.png" alt="Usuario" class="avatar-image">
+          </div>
+        </div>
+        <div class="user-details">
+          <h2 class="user-name">{{ user?.nombreRazonSocial || 'Usuario' }}</h2>
+          <p class="user-email">{{ user?.email || 'email@ejemplo.com' }}</p>
+        </div>
+      </div>
+      
+      <div class="action-buttons">
+        <button class="btn btn-primary" (click)="editProfile()">
+          Editar Perfil
+        </button>
+        <button class="btn btn-secondary" (click)="viewOrderHistory()">
+          Ver Historial de Pedidos
+        </button>
+        <button class="btn btn-outline" (click)="logout()">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+
+    <!-- Tarjeta inferior: Información de la cuenta -->
+    <div class="info-card">
+      <h3 class="card-title">Información de la cuenta</h3>
+      <div class="info-row">
+        <span class="info-label">Usuario:</span>
+        <span class="info-value">{{ user?.nombreRazonSocial || 'N/A' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email:</span>
+        <span class="info-value">{{ user?.email || 'N/A' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Miembro desde:</span>
+        <span class="info-value">{{ memberSince }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Rol actual:</span>
+        <span class="info-value">{{ user?.tipoUsuario || 'N/A' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">CUIT:</span>
+        <span class="info-value">{{ user?.cuit || 'N/A' }}</span>
+      </div>
+      <div class="info-row">
+        <button class="btn btn-secondary" (click)="cambiarRol()">
+          Cambiar a {{ user?.tipoUsuario === 'CLIENTE' ? 'ADMIN' : 'CLIENTE' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,124 @@
+<div class="product-list-container">
+  <!-- Header negro con logo y navegación -->
+  <div class="catalog-header">
+    <div class="header-left">
+      <div class="logo" (click)="goToCatalog()">
+        <div class="logo-symbol">
+          <img src="/HIRKUM-MONOGRAMA-B.jpg" alt="HIRKUM Logo" class="logo-image">
+        </div>
+        <span>HRK</span>
+      </div>
+      <nav class="main-nav">
+        <a (click)="goToCatalog()" class="nav-item active">SHOP</a>
+        <a (click)="goToCatalog()" class="nav-item sale">SALE</a>
+        <a (click)="goToInfo()" class="nav-item info">info</a>
+      </nav>
+    </div>
+    
+    <div class="header-right">
+      <button class="icon-btn cart-icon" title="Carrito" (click)="goToCart()">
+        🛒
+        <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+      </button>
+      <button class="icon-btn search-icon" title="Buscar" (click)="openSearchModal()">
+        🔍
+      </button>
+      <button class="icon-btn history-btn" title="Historial de Pedidos" (click)="goToHistory()">
+        📋
+      </button>
+      <button class="icon-btn user-icon" title="Perfil de Usuario" (click)="goToProfile()">
+        <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img">
+      </button>
+      <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- Header con filtros -->
+  <div class="filters-header">
+    <div class="filters">
+      <button 
+        class="filter-btn" 
+        [class.active]="selectedFilter === 'tejido'"
+        (click)="setFilter('tejido')"
+      >
+        Tejido
+      </button>
+      <button 
+        class="filter-btn" 
+        [class.active]="selectedFilter === 'plano'"
+        (click)="setFilter('plano')"
+      >
+        Plano
+      </button>
+    </div>
+    
+    <!-- Botón de agregar producto solo para ADMIN -->
+    <div class="admin-actions" *ngIf="isAdmin()">
+      <button class="add-product-btn" (click)="goToAddProduct()">
+        ➕ Agregar Producto
+      </button>
+    </div>
+  </div>
+
+  <h2>Catálogo</h2>
+  <div *ngIf="loading" class="loading">Cargando…</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+  
+
+  <div *ngFor="let p of productos" class="card">
+    <div class="product-header">
+      <img [src]="p.imagenUrl" alt="{{p.nombre}}" width="100">
+      <div class="product-info">
+        <h3>{{ p.nombre }}</h3>
+        <div>{{ p.descripcion }}</div>
+        <p><strong>Categoría:</strong> {{ p.categoria }}</p>
+        <p><strong>Tipo:</strong> {{ p.tipo }}</p>
+        <p><strong>Variantes:</strong> {{ p.variantes.length || 0 }}</p>
+      </div>
+    </div>
+
+    <app-product-grid [producto]="p" (add)="onAdd($event.varianteId, $event.cantidad)"></app-product-grid>
+  </div>
+
+  <a routerLink="/cart" class="btn-cart">Ir al carrito / nota</a>
+</div>
+
+<!-- Modal de búsqueda -->
+<div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
+  <div class="search-modal" (click)="$event.stopPropagation()">
+    <div class="search-header">
+      <h3>Buscar en la página</h3>
+      <button class="close-btn" (click)="closeSearchModal()">×</button>
+    </div>
+    
+    <div class="search-input-container">
+      <input 
+        type="text" 
+        [(ngModel)]="searchTerm" 
+        (input)="performSearch()"
+        placeholder="Escribe lo que quieres buscar..."
+        class="search-input"
+        autofocus
+      >
+    </div>
+    
+    <div class="search-results" *ngIf="searchResults.length > 0">
+      <div class="search-result-item" 
+           *ngFor="let result of searchResults" 
+           (click)="scrollToResult(result)">
+        <div class="result-type">{{ result.type === 'producto' ? '🛍️' : '📄' }}</div>
+        <div class="result-content">
+          <div class="result-title">{{ result.title }}</div>
+          <div class="result-description">{{ result.description }}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="no-results" *ngIf="searchTerm && searchResults.length === 0">
+      <p>No se encontraron resultados para "{{ searchTerm }}"</p>
+    </div>
+  </div>
+</div>
+

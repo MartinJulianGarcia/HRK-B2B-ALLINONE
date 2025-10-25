@@ -1,0 +1,205 @@
+<div class="order-detail-page-container">
+<!-- Header negro con logo y navegación -->
+<div class="home-header">
+  <div class="header-left">
+    <div class="logo" (click)="goToCatalog()">
+      <div class="logo-symbol">
+        <img src="/HIRKUM-MONOGRAMA-B.jpg" alt="HIRKUM Logo" class="logo-image">
+      </div>
+      <span>HRK</span>
+    </div>
+    <nav class="main-nav">
+      <a (click)="goToCatalog()" class="nav-item">SHOP</a>
+      <a (click)="goToCatalog()" class="nav-item sale">SALE</a>
+      <a (click)="goToInfo()" class="nav-item info">info</a>
+    </nav>
+  </div>
+  
+  <div class="header-right">
+    <button class="icon-btn cart-icon" title="Carrito" (click)="goToCart()">
+      🛒
+      <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+    </button>
+    <button class="icon-btn search-icon" title="Buscar" (click)="openSearchModal()">
+      🔍
+    </button>
+    <button class="icon-btn history-btn active" title="Historial de Pedidos" (click)="goToHistory()">
+      📋
+    </button>
+    <button class="icon-btn user-icon" title="Perfil de Usuario" (click)="goToProfile()">
+      <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img">
+    </button>
+    <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
+      Cerrar Sesión
+    </button>
+  </div>
+</div>
+
+<!-- Contenido principal -->
+<div class="order-detail-container">
+  <!-- Botón de retroceso -->
+  <button class="back-btn" (click)="goToHistory()">← Volver al Historial</button>
+  
+  <h1 class="page-title">DETALLE DEL PEDIDO</h1>
+  
+  <!-- Estado de carga -->
+  <div *ngIf="loading" class="loading-state">
+    <p>Cargando detalles del pedido...</p>
+  </div>
+
+  <!-- Estado de error -->
+  <div *ngIf="error && !loading" class="error-state">
+    <p>{{ error }}</p>
+    <button (click)="loadPedido()" class="retry-btn">Reintentar</button>
+  </div>
+
+  <!-- Detalles del pedido -->
+  <div *ngIf="pedido && !loading && !error" class="order-detail">
+    <!-- Información básica del pedido -->
+    <div class="order-info-card">
+      <div class="info-header">
+        <h2>Pedido #{{ pedido.id }}</h2>
+        <span [class]="getEstadoClass(pedido.estado)" class="current-status">
+          {{ pedido.estado }}
+        </span>
+      </div>
+      
+      <div class="info-grid">
+        <div class="info-item">
+          <label>Fecha:</label>
+          <span>{{ formatearFecha(pedido.fecha) }}</span>
+        </div>
+        <div class="info-item">
+          <label>Cliente ID:</label>
+          <span>{{ pedido.clienteId }} - {{ pedido.usuario?.nombreRazonSocial || 'SIN NOMBRE' }}</span>
+        </div>
+        <div class="info-item">
+          <label>Método de Pago:</label>
+          <span>{{ pedido.metodoPago || 'No especificado' }}</span>
+        </div>
+        <div class="info-item">
+          <label>Total:</label>
+          <span class="total-amount">{{ formatearMonto(pedido.montoTotal) }}</span>
+        </div>
+        <div class="info-item">
+          <label>Tipo:</label>
+          <span>{{ pedido.tipo }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cambio de estado -->
+    <div class="status-change-card">
+      <h3>Cambiar Estado del Pedido</h3>
+      <div class="status-controls">
+        <label for="nuevoEstado">Estado actual: <strong>{{ pedido.estado }}</strong></label>
+        <div class="status-input-group">
+          <select 
+            id="nuevoEstado" 
+            [(ngModel)]="nuevoEstado" 
+            class="status-select"
+            [disabled]="cambiandoEstado">
+            <option *ngFor="let estado of estadosDisponibles" [value]="estado.value">
+              {{ estado.label }}
+            </option>
+          </select>
+          <button 
+            class="change-status-btn"
+            (click)="cambiarEstado()"
+            [disabled]="!nuevoEstado || nuevoEstado === pedido.estado || cambiandoEstado">
+            <span *ngIf="!cambiandoEstado">Actualizar Estado</span>
+            <span *ngIf="cambiandoEstado">Actualizando...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items del pedido -->
+    <div class="items-card">
+      <h3>Items del Pedido ({{ pedido.items?.length || 0 }})</h3>
+      
+      <div *ngIf="!pedido.items || pedido.items.length === 0" class="no-items">
+        <p>No se encontraron items para este pedido.</p>
+      </div>
+      
+      <div *ngIf="pedido.items && pedido.items.length > 0" class="items-list">
+        <!-- Lista de items como en el carrito -->
+        <div class="cart-items">
+          <div *ngFor="let item of pedido.items" class="cart-item order-item" [attr.data-item-id]="item.id">
+            <div class="item-info">
+              <h4 *ngIf="item.productoNombre">
+                {{ item.productoNombre }}
+              </h4>
+              <h4 *ngIf="!item.productoNombre && item.variante">
+                {{ item.variante.sku }}
+              </h4>
+              <h4 *ngIf="!item.productoNombre && !item.variante">
+                Variante ID: {{ item.varianteId }}
+              </h4>
+              <p *ngIf="item.variante">
+                {{ item.variante.color }} - Talle {{ item.variante.talle }}
+              </p>
+              <p *ngIf="item.variante">
+                SKU: {{ item.variante.sku }}
+              </p>
+              <p *ngIf="!item.variante">
+                ID del item: {{ item.id }}
+              </p>
+            </div>
+            <div class="item-quantity">
+              <label>Cantidad:</label>
+              <div class="quantity-display">{{ item.cantidad }}</div>
+            </div>
+            <div class="item-price">
+              <span class="unit-price">{{ formatearMonto(item.precioUnitario) }} c/u</span>
+              <span class="subtotal">{{ formatearMonto(item.subtotal) }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Total -->
+        <div class="cart-total">
+          <div class="total-line">
+            <span class="total-label">TOTAL DEL PEDIDO:</span>
+            <span class="total-amount">{{ formatearMonto(pedido.montoTotal) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de búsqueda -->
+<div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
+  <div class="search-modal" (click)="$event.stopPropagation()">
+    <div class="search-header">
+      <h3>Buscar en la página</h3>
+      <button class="close-btn" (click)="closeSearchModal()">×</button>
+    </div>
+    <div class="search-input-container">
+      <input 
+        type="text" 
+        [(ngModel)]="searchTerm" 
+        (input)="performSearch()"
+        placeholder="Escribe lo que quieres buscar..."
+        class="search-input"
+        autofocus
+      >
+    </div>
+    <div class="search-results" *ngIf="searchResults.length > 0">
+      <div class="search-result-item" 
+           *ngFor="let result of searchResults" 
+           (click)="scrollToResult(result)">
+        <div class="result-type">{{ result.type === 'item' ? '🛍️' : '📄' }}</div>
+        <div class="result-content">
+          <div class="result-title">{{ result.title }}</div>
+          <div class="result-description">{{ result.description }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="no-results" *ngIf="searchTerm && searchResults.length === 0">
+      <p>No se encontraron resultados para "{{ searchTerm }}"</p>
+    </div>
+  </div>
+</div>
+</div>

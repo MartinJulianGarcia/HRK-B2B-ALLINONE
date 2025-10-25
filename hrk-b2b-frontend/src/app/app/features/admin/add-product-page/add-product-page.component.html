@@ -1,0 +1,302 @@
+<div class="add-product-container">
+  <!-- Header negro con logo y navegación -->
+  <div class="admin-header">
+    <div class="header-left">
+      <div class="logo" (click)="goToCatalog()">
+        <div class="logo-symbol">
+          <img src="/HIRKUM-MONOGRAMA-B.jpg" alt="HIRKUM Logo" class="logo-image">
+        </div>
+        <span>HRK</span>
+      </div>
+      <nav class="main-nav">
+        <a (click)="goToCatalog()" class="nav-item">SHOP</a>
+        <a (click)="goToCatalog()" class="nav-item sale">SALE</a>
+        <a (click)="goToInfo()" class="nav-item info">info</a>
+      </nav>
+    </div>
+    
+    <div class="header-right">
+      <button class="icon-btn cart-icon" title="Carrito" (click)="goToCart()">
+        🛒
+        <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+      </button>
+      <button class="icon-btn search-icon" title="Buscar" (click)="openSearchModal()">
+        🔍
+      </button>
+      <button class="icon-btn history-btn" title="Historial de Pedidos" (click)="goToHistory()">
+        📋
+      </button>
+      <button class="icon-btn user-icon" title="Perfil de Usuario" (click)="goToProfile()">
+        <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img">
+      </button>
+      <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- Formulario de agregar producto -->
+  <div class="form-container">
+    <div class="form-header">
+      <h1>➕ Agregar Nuevo Producto</h1>
+      <p>Completa todos los campos para agregar un nuevo producto al catálogo</p>
+    </div>
+
+    <form (ngSubmit)="onSubmit()" #productForm="ngForm" class="product-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nombre">Nombre del Producto *</label>
+          <input 
+            type="text" 
+            id="nombre" 
+            name="nombre" 
+            [(ngModel)]="productData.nombre" 
+            required 
+            class="form-control"
+            placeholder="Ej: Remera Básica"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="tipo">Tipo de Producto *</label>
+          <select 
+            id="tipo" 
+            name="tipo" 
+            [(ngModel)]="productData.tipo" 
+            (ngModelChange)="onTipoChange()"
+            required 
+            class="form-control"
+          >
+            <option value="">Seleccionar tipo...</option>
+            <option *ngFor="let tipo of tipoProductos" [value]="tipo">
+              {{ tipo }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="categoria">Categoría *</label>
+          <select 
+            id="categoria" 
+            name="categoria" 
+            [(ngModel)]="productData.categoria" 
+            required 
+            class="form-control"
+          >
+            <option [ngValue]="null">Seleccionar categoría...</option>
+            <option value="PLANO">Plano (se compra en rollo)</option>
+            <option value="TEJIDO">Tejido (se hace en rectilínea)</option>
+          </select>
+          <small class="form-help">Plano: se compra en rollo. Tejido: se hace en rectilínea</small>
+        </div>
+
+        <div class="form-group">
+          <label for="sku">SKU *</label>
+          <input 
+            type="text" 
+            id="sku" 
+            name="sku" 
+            [(ngModel)]="productData.sku" 
+            required 
+            class="form-control"
+            placeholder="Ej: REM-001-TJ"
+          >
+        </div>
+      </div>
+
+      <!-- Selección de Colores -->
+      <div class="form-group" [class.error]="formSubmitted && productData.colores.length === 0">
+        <label>Colores Disponibles *</label>
+        <div class="color-options">
+          <div 
+            *ngFor="let color of opcionesColores" 
+            class="color-option"
+            [class.selected]="isColorSelected(color)"
+            (click)="toggleColor(color)"
+          >
+            <span class="color-dot" [style.background-color]="getColorValue(color)"></span>
+            {{ color }}
+          </div>
+        </div>
+        <div class="selected-items" *ngIf="productData.colores.length > 0">
+          <strong>Seleccionados:</strong> {{ productData.colores.join(', ') }}
+        </div>
+        <div *ngIf="formSubmitted && productData.colores.length === 0" class="error-message">
+          ❌ Debes seleccionar al menos un color
+        </div>
+      </div>
+
+      <!-- Selección de Categoría de Talles -->
+      <div class="form-group" [class.error]="formSubmitted && !categoriaTalleSeleccionada">
+        <label>Categoría de Talles *</label>
+        <div class="category-options">
+          <div 
+            *ngFor="let categoria of categoriasTalles" 
+            class="category-option"
+            [class.selected]="categoriaTalleSeleccionada === categoria.id"
+            (click)="selectTalleCategory(categoria.id)"
+          >
+            <div class="category-name">{{ categoria.nombre }}</div>
+            <div class="category-examples">{{ categoria.opciones.join(', ') }}</div>
+          </div>
+        </div>
+        <div *ngIf="formSubmitted && !categoriaTalleSeleccionada" class="error-message">
+          ❌ Debes seleccionar una categoría de talles
+        </div>
+      </div>
+
+      <!-- Selección de Talles Específicos -->
+      <div class="form-group" [class.error]="formSubmitted && productData.talles.length === 0" *ngIf="categoriaTalleSeleccionada">
+        <label>Talles Específicos *</label>
+        <div class="size-options">
+          <div 
+            *ngFor="let talle of getTallesDisponibles()" 
+            class="size-option"
+            [class.selected]="isTalleSelected(talle)"
+            (click)="toggleTalle(talle)"
+          >
+            {{ talle }}
+          </div>
+        </div>
+        <div class="selected-items" *ngIf="productData.talles.length > 0">
+          <strong>Seleccionado:</strong> {{ productData.talles[0] }}
+        </div>
+        <div *ngIf="formSubmitted && productData.talles.length === 0" class="error-message">
+          ❌ Debes seleccionar un talle específico
+        </div>
+      </div>
+
+      <!-- Subida de Imagen -->
+      <div class="form-group">
+        <label for="imagen">Imagen del Producto</label>
+        <div class="image-upload">
+          <input 
+            type="file" 
+            id="imagen" 
+            name="imagen" 
+            (change)="onImageSelected($event)"
+            accept="image/*"
+            class="file-input"
+          >
+          <label for="imagen" class="file-label">
+            📷 Seleccionar Imagen
+          </label>
+          <div class="image-preview" *ngIf="productData.imagen">
+            <div class="preview-container">
+              <img [src]="productData.imagenBase64" [alt]="productData.imagen.name" class="preview-image" *ngIf="productData.imagenBase64">
+              <span class="file-name">{{ productData.imagen.name }}</span>
+            </div>
+          </div>
+        </div>
+        <small class="form-help">Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 5MB</small>
+        <div class="image-info" *ngIf="productData.imagen">
+          <small class="image-note">
+            ✅ Imagen seleccionada: {{ productData.imagen.name }}
+          </small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="precio">Precio *</label>
+          <input 
+            type="number" 
+            id="precio" 
+            name="precio" 
+            [(ngModel)]="productData.precio" 
+            required 
+            min="0" 
+            step="0.01"
+            class="form-control"
+            placeholder="0.00"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="stock">Stock Inicial *</label>
+          <input 
+            type="number" 
+            id="stock" 
+            name="stock" 
+            [(ngModel)]="productData.stock" 
+            required 
+            min="0"
+            class="form-control"
+            placeholder="0"
+          >
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="descripcion">Descripción (Opcional)</label>
+        <textarea 
+          id="descripcion" 
+          name="descripcion" 
+          [(ngModel)]="productData.descripcion" 
+          class="form-control"
+          rows="3"
+          placeholder="Descripción detallada del producto..."
+        ></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="goToCatalog()">
+          Cancelar
+        </button>
+        <button 
+          type="submit" 
+          class="btn btn-primary" 
+          [disabled]="!productForm.valid || loading"
+        >
+          <span *ngIf="loading">⏳</span>
+          <span *ngIf="!loading">✅</span>
+          {{ loading ? 'Guardando...' : 'Guardar Producto' }}
+        </button>
+      </div>
+
+      <div *ngIf="error" class="error-message">
+        ❌ {{ error }}
+      </div>
+
+      <div *ngIf="success" class="success-message">
+        ✅ {{ success }}
+      </div>
+    </form>
+  </div>
+
+  <!-- Modal de búsqueda -->
+  <div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
+    <div class="search-modal" (click)="$event.stopPropagation()">
+      <div class="search-header">
+        <h3>Buscar en la página</h3>
+        <button class="close-btn" (click)="closeSearchModal()">×</button>
+      </div>
+      <div class="search-input-container">
+        <input 
+          type="text" 
+          [(ngModel)]="searchTerm" 
+          (input)="performSearch()"
+          placeholder="Escribe lo que quieres buscar..."
+          class="search-input"
+          autofocus
+        >
+      </div>
+      <div class="search-results" *ngIf="searchResults.length > 0">
+        <div class="search-result-item" 
+             *ngFor="let result of searchResults" 
+             (click)="scrollToResult(result)">
+          <div class="result-type">{{ result.type === 'campo' ? '📝' : '📄' }}</div>
+          <div class="result-content">
+            <div class="result-title">{{ result.title }}</div>
+            <div class="result-description">{{ result.description }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="no-results" *ngIf="searchTerm && searchResults.length === 0">
+        <p>No se encontraron resultados para "{{ searchTerm }}"</p>
+      </div>
+    </div>
+  </div>
+</div>

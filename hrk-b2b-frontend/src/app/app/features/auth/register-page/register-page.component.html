@@ -1,0 +1,127 @@
+<div class="register-container">
+  <div class="register-header">
+    <div class="logo">
+      <div class="logo-symbol">
+        <img src="/HIRKUM-MONOGRAMA-B.jpg" alt="HIRKUM Logo" class="logo-image">
+      </div>
+      <span>HRK</span>
+    </div>
+    <h1 class="register-title">Create Account</h1>
+  </div>
+  
+  <div class="register-card">
+    <form (ngSubmit)="onSubmit()" #registerForm="ngForm">
+      <div class="form-group">
+        <label for="nombreRazonSocial">Nombre de usuario/razon social:</label>
+        <input 
+          type="text" 
+          id="nombreRazonSocial" 
+          name="nombreRazonSocial" 
+          [(ngModel)]="userData.nombreRazonSocial" 
+          required 
+          minlength="2"
+          #nombreRazonSocial="ngModel"
+          class="form-control"
+          placeholder="Ingresa tu nombre de usuario"
+        >
+        <div *ngIf="nombreRazonSocial.invalid && nombreRazonSocial.touched" class="error">
+          Nombre es requerido (mínimo 2 caracteres)
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Mail:</label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          [(ngModel)]="userData.email" 
+          required 
+          email
+          #email="ngModel"
+          class="form-control"
+          placeholder="Ingresa tu correo electrónico"
+        >
+        <div *ngIf="email.invalid && email.touched" class="error">
+          Email es requerido y debe ser válido
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="cuit">CUIT:</label>
+        <input 
+          type="text" 
+          id="cuit" 
+          name="cuit" 
+          [(ngModel)]="cuitFormatted" 
+          (input)="onCuitChange($event)"
+          placeholder="xx-xxxxxxxx-x"
+          class="form-control"
+          maxlength="13"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password">Contraseña:</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          [(ngModel)]="userData.password" 
+          (input)="onPasswordChange()"
+          required 
+          minlength="6"
+          #password="ngModel"
+          class="form-control"
+          placeholder="Ingresa tu contraseña"
+        >
+        <div *ngIf="password.invalid && password.touched" class="error">
+          Contraseña es requerida (mínimo 6 caracteres)
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password2">Repetir Contraseña:</label>
+        <input 
+          type="password" 
+          id="password2" 
+          name="password2" 
+          [(ngModel)]="password2"
+          (input)="onPasswordChange()"
+          placeholder="Confirma tu contraseña"
+          class="form-control"
+        >
+        <div *ngIf="password2 && userData.password && !passwordsMatch" class="error">
+          Las contraseñas no coinciden
+        </div>
+        <div *ngIf="passwordsMatch && password2" class="success">
+          ✓ Las contraseñas coinciden
+        </div>
+      </div>
+
+
+      <div *ngIf="error" class="error-message">
+        {{ error }}
+      </div>
+
+      <div *ngIf="loading" class="loading">
+        Registrando usuario...
+      </div>
+
+      <button 
+        type="submit" 
+        [disabled]="registerForm.invalid || !passwordsMatch || loading"
+        class="btn"
+        [class.btn-primary]="registerForm.invalid || !passwordsMatch || loading"
+        [class.btn-success]="registerForm.valid && passwordsMatch && !loading"
+      >
+        Sign Up
+      </button>
+    </form>
+
+    <div class="register-footer">
+      <p>¿Ya tenes cuenta? <a routerLink="/login">Iniciar sesion</a></p>
+    </div>
+  </div>
+</div>
+
