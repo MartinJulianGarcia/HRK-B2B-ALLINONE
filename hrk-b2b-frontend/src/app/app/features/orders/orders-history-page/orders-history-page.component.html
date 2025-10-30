@@ -39,17 +39,42 @@
 <div class="orders-container">
   <h1 class="page-title">HISTORIAL DE PEDIDOS</h1>
   
-  <!-- Filtro de fecha -->
+  <!-- Filtros en la misma fila -->
   <div class="filter-section">
-    <label for="fecha" class="filter-label">Fecha desde:</label>
-    <input 
-      type="date" 
-      id="fecha" 
-      [(ngModel)]="filtroFecha" 
-      (change)="onFechaChange()"
-      class="date-input"
-      placeholder="Selecciona fecha desde"
-    />
+    <!-- Selector de usuario (solo para administradores) - Primero a la izquierda -->
+    <div *ngIf="isAdmin" class="user-filter">
+      <label for="usuario" class="filter-label">Cliente:</label>
+      <select 
+        id="usuario"
+        [(ngModel)]="selectedUserId" 
+        (change)="onUserChange()"
+        class="user-select"
+        [disabled]="loadingUsers">
+        <option value="">Todos los clientes</option>
+        <option *ngFor="let user of usuarios" [value]="user.id">
+          {{ user.nombreRazonSocial }} ({{ user.email }})
+        </option>
+      </select>
+      <div *ngIf="loadingUsers" class="loading-indicator">
+        Cargando usuarios...
+      </div>
+      <div *ngIf="selectedUser" class="selected-user-info">
+        <strong>Mostrando pedidos de:</strong> {{ selectedUser.nombreRazonSocial }}
+      </div>
+    </div>
+
+    <!-- Filtro de fecha - A la derecha -->
+    <div class="date-filter">
+      <label for="fecha" class="filter-label">Fecha desde:</label>
+      <input 
+        type="date" 
+        id="fecha" 
+        [(ngModel)]="filtroFecha" 
+        (change)="onFechaChange()"
+        class="date-input"
+        placeholder="Selecciona fecha desde"
+      />
+    </div>
   </div>
   
   <!-- Estado de carga -->
@@ -84,15 +109,24 @@
       </div>
       
       <div class="table-body">
-        <div *ngFor="let pedido of pedidosFiltrados" class="table-row" [attr.data-pedido-id]="pedido.id">
-          <div class="table-cell"><strong>#{{ pedido.id }}</strong></div>
+        <div *ngFor="let pedido of pedidosFiltrados" 
+             class="table-row" 
+             [class]="getRowClass(pedido.tipo)"
+             [attr.data-pedido-id]="pedido.id">
+          <div class="table-cell">
+            <strong>#{{ pedido.id }}</strong>
+            <span *ngIf="!selectedUserId"> - {{ pedido.usuario?.nombreRazonSocial || 'Cliente' }}</span>
+          </div>
           <div class="table-cell">{{ formatearFecha(pedido.fecha) }}</div>
           <div class="table-cell">{{ formatearMonto(pedido.montoTotal) }}</div>
           <div class="table-cell">
             <span [class]="getEstadoClass(pedido.estado)">{{ pedido.estado }}</span>
           </div>
           <div class="table-cell">
-            <button [class]="getTipoClass(pedido.tipo)">{{ pedido.tipo }}</button>
+            <span [class]="getTipoClass(pedido.tipo)">
+              <span class="tipo-icon">{{ getTipoIcon(pedido.tipo) }}</span>
+              {{ pedido.tipo }}
+            </span>
           </div>
           <div class="table-cell">
             <button class="view-btn" (click)="verDetallePedido(pedido.id)" title="Ver Detalle">
@@ -104,11 +138,18 @@
     </div>
   </div>
   
-  <!-- Botón de generar devolución -->
-  <div class="actions-section">
-    <button (click)="generarNotaDevolucion()" class="devolucion-btn">
+  <!-- Botón de generar devolución (solo para administradores) -->
+  <div *ngIf="isAdmin" class="actions-section">
+    <button 
+      (click)="generarNotaDevolucion()" 
+      class="devolucion-btn"
+      [disabled]="!selectedUserId"
+      [class.disabled]="!selectedUserId">
       Generar nota de devolución
     </button>
+    <div *ngIf="!selectedUserId" class="devolucion-hint">
+      Selecciona un cliente específico para generar la nota de devolución
+    </div>
   </div>
 </div>
 

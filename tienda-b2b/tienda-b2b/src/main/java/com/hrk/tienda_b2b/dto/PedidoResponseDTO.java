@@ -15,6 +15,8 @@ public class PedidoResponseDTO {
     private Long clienteId;
     private String fecha;
     private String estado;
+    private String tipo; // ⭐ NUEVO: Tipo de documento (PEDIDO/DEVOLUCION)
+    private String tipoAprobacionDevolucion; // ⭐ NUEVO: Tipo de aprobación para devoluciones (APTA/SCRAP/null)
     private Double total;
     private String metodoPago; // ⭐ NUEVO: Método de pago
     private UsuarioDTO usuario;

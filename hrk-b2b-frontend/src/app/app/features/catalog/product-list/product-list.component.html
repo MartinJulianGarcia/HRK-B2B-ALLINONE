@@ -67,7 +67,7 @@
   <div *ngIf="error" class="error">{{ error }}</div>
   
 
-  <div *ngFor="let p of productos" class="card">
+  <div *ngFor="let p of productos" class="card" [attr.data-product-id]="p.id">
     <div class="product-header">
       <img [src]="p.imagenUrl" alt="{{p.nombre}}" width="100">
       <div class="product-info">
@@ -76,6 +76,12 @@
         <p><strong>Categoría:</strong> {{ p.categoria }}</p>
         <p><strong>Tipo:</strong> {{ p.tipo }}</p>
         <p><strong>Variantes:</strong> {{ p.variantes.length || 0 }}</p>
+        <!-- Botón de modificar solo para ADMIN -->
+        <div *ngIf="isAdmin()" class="product-actions">
+          <button class="edit-product-btn" (click)="goToEditProduct(p.id)" title="Modificar Producto">
+            ✏️ Modificar Producto
+          </button>
+        </div>
       </div>
     </div>
 

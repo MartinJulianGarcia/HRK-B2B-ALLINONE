@@ -5,7 +5,9 @@ import { tap, catchError, map, switchMap, concatMap, toArray } from 'rxjs/operat
 
 export enum EstadoPedido {
   PENDIENTE = 'Pendiente',
-  ENTREGADO = 'Entregado'
+  CONFIRMADO = 'Confirmado',
+  ENTREGADO = 'Entregado',
+  CANCELADO = 'Cancelado'
 }
 
 export enum TipoPedido {
@@ -44,6 +46,7 @@ export interface Pedido {
   montoTotal: number;
   estado: EstadoPedido;
   tipo: TipoPedido;
+  tipoAprobacionDevolucion?: 'APTA' | 'SCRAP'; // ⭐ NUEVO: Tipo de aprobación para devoluciones
   metodoPago?: string; // ⭐ AGREGAR MÉTODO DE PAGO
   items: ItemPedido[];
   usuario?: {
@@ -73,6 +76,7 @@ export interface PedidoResponseDTO {
   montoTotal?: number; // Mantener para compatibilidad
   estado: string;
   tipo?: TipoPedido;
+  tipoAprobacionDevolucion?: 'APTA' | 'SCRAP'; // ⭐ NUEVO: Tipo de aprobación para devoluciones
   metodoPago?: string; // ⭐ AGREGAR MÉTODO DE PAGO
   usuario?: {
     id: number;
@@ -132,8 +136,14 @@ export class OrdersService {
         case 'PENDIENTE':
           estadoMapeado = EstadoPedido.PENDIENTE;
           break;
+        case 'CONFIRMADO':
+          estadoMapeado = EstadoPedido.CONFIRMADO;
+          break;
         case 'ENTREGADO':
           estadoMapeado = EstadoPedido.ENTREGADO;
+          break;
+        case 'CANCELADO':
+          estadoMapeado = EstadoPedido.CANCELADO;
           break;
         default:
           estadoMapeado = EstadoPedido.PENDIENTE;
@@ -148,7 +158,8 @@ export class OrdersService {
       fecha: new Date(dto.fecha),
       montoTotal: dto.total || dto.montoTotal || 0, // Backend devuelve 'total', frontend espera 'montoTotal'
       estado: estadoMapeado,
-      tipo: dto.tipo || TipoPedido.PEDIDO,
+      tipo: (dto.tipo as string) === 'DEVOLUCION' ? TipoPedido.DEVOLUCION : TipoPedido.PEDIDO,
+      tipoAprobacionDevolucion: dto.tipoAprobacionDevolucion as 'APTA' | 'SCRAP' | undefined, // ⭐ NUEVO: Tipo de aprobación para devoluciones
       metodoPago: dto.metodoPago, // ⭐ AGREGAR MÉTODO DE PAGO
       usuario: dto.usuario, // ⭐ AGREGAR INFORMACIÓN DEL USUARIO
       items: (dto.detalles || dto.items || []).map((detalle: any) => ({
@@ -281,15 +292,34 @@ export class OrdersService {
           ),
           // Recopilar todos los resultados al final
           toArray(),
-          map((resultados: any[]) => {
+          switchMap((resultados: any[]) => {
             const itemsExitosos = resultados.filter(r => r && r.success);
             console.log('🔵 [ORDERS SERVICE] Items agregados exitosamente:', itemsExitosos.length, 'de', items.length);
             
-            // Si tenemos una respuesta exitosa guardada, usar esos datos del backend
-            if (ultimaRespuestaPedido) {
+            // Si tenemos una respuesta exitosa guardada, confirmar el pedido para descontar stock
+            if (ultimaRespuestaPedido && itemsExitosos.length === items.length) {
+              console.log('🔵 [ORDERS SERVICE] Todos los items agregados. Confirmando pedido para descontar stock...');
+              
+              // Confirmar el pedido para descontar stock y registrar movimientos
+              return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoCreado.id}/confirmar`, {}).pipe(
+                map((pedidoConfirmado: PedidoResponseDTO) => {
+                  console.log('✅ [ORDERS SERVICE] Pedido confirmado - Stock descontado:', pedidoConfirmado);
+                  const pedidoFinal = this.mapToPedido(pedidoConfirmado);
+                  return pedidoFinal;
+                }),
+                catchError((error) => {
+                  console.error('🔴 [ORDERS SERVICE] Error al confirmar pedido (pero items ya agregados):', error);
+                  // Si falla la confirmación, devolver el pedido sin confirmar (pero ya con items)
+                  const pedidoFinal = this.mapToPedido(ultimaRespuestaPedido);
+                  console.warn('⚠️ [ORDERS SERVICE] Pedido creado pero NO confirmado - Stock NO descontado');
+                  return of(pedidoFinal);
+                })
+              );
+            } else if (ultimaRespuestaPedido) {
+              // Si algunos items fallaron, devolver el pedido parcial sin confirmar
+              console.warn('⚠️ [ORDERS SERVICE] Algunos items no se agregaron. Pedido NO confirmado.');
               const pedidoFinal = this.mapToPedido(ultimaRespuestaPedido);
-              console.log('🔵 [ORDERS SERVICE] Pedido final desde backend:', pedidoFinal);
-              return pedidoFinal;
+              return of(pedidoFinal);
             }
             
             // Fallback si no hay respuestas exitosas
@@ -303,7 +333,7 @@ export class OrdersService {
               tipo: TipoPedido.PEDIDO,
               items: items
             };
-            return pedidoFinal;
+            return of(pedidoFinal);
           })
         );
       }),
@@ -336,6 +366,37 @@ export class OrdersService {
 
         console.log('🟡 [ORDERS SERVICE] Pedido mock creado con ID negativo:', nuevoPedido.id);
     return of(nuevoPedido);
+      })
+    );
+  }
+
+  // Obtener todos los pedidos (para administradores)
+  getTodosLosPedidos(): Observable<Pedido[]> {
+    console.log('🔵 [ORDERS SERVICE] Obteniendo todos los pedidos');
+    console.log('🔵 [ORDERS SERVICE] URL completa:', `${this.API_URL}/pedidos/todos`);
+    
+    return this.http.get<PedidoResponseDTO[]>(`${this.API_URL}/pedidos/todos`).pipe(
+      tap(response => {
+        console.log('🔵 [ORDERS SERVICE] Respuesta del backend:', response);
+        console.log('🔵 [ORDERS SERVICE] Cantidad de pedidos:', response?.length || 0);
+      }),
+      map(response => {
+        if (!Array.isArray(response)) {
+          console.error('🔴 [ORDERS SERVICE] La respuesta no es un array:', response);
+          return [];
+        }
+        
+        return response.map((pedido: any) => this.mapToPedido(pedido));
+      }),
+      catchError((error: HttpErrorResponse) => {
+        console.error('🔴 [ORDERS SERVICE] Error HTTP al obtener todos los pedidos:', error);
+        if (error.status === 500) {
+          throw new Error('Error interno del servidor. Por favor, inténtalo de nuevo más tarde.');
+        } else if (error.status === 404) {
+          throw new Error('Endpoint no encontrado. Verifica la configuración del servidor.');
+        } else {
+          throw new Error('Error al obtener todos los pedidos: ' + error.message);
+        }
       })
     );
   }
@@ -493,6 +554,34 @@ export class OrdersService {
     return of(nuevaDevolucion);
   }
 
+  // Aprobar devolución como apta (devuelve stock)
+  aprobarDevolucionApta(devolucionId: number): Observable<PedidoResponseDTO> {
+    console.log('🔵 [ORDERS SERVICE] Aprobando devolución como apta:', devolucionId);
+    return this.http.post<PedidoResponseDTO>(`${this.API_URL}/devoluciones/${devolucionId}/aprobar-apta`, {}).pipe(
+      tap(response => {
+        console.log('✅ [ORDERS SERVICE] Devolución aprobada como apta:', response);
+      }),
+      catchError((error: HttpErrorResponse) => {
+        console.error('🔴 [ORDERS SERVICE] Error al aprobar devolución como apta:', error);
+        throw error;
+      })
+    );
+  }
+
+  // Aprobar devolución como scrap (no devuelve stock, solo registra)
+  aprobarDevolucionScrap(devolucionId: number): Observable<PedidoResponseDTO> {
+    console.log('🔵 [ORDERS SERVICE] Aprobando devolución como scrap:', devolucionId);
+    return this.http.post<PedidoResponseDTO>(`${this.API_URL}/devoluciones/${devolucionId}/aprobar-scrap`, {}).pipe(
+      tap(response => {
+        console.log('✅ [ORDERS SERVICE] Devolución aprobada como scrap:', response);
+      }),
+      catchError((error: HttpErrorResponse) => {
+        console.error('🔴 [ORDERS SERVICE] Error al aprobar devolución como scrap:', error);
+        throw error;
+      })
+    );
+  }
+
   // Actualizar estado de un pedido en el backend
   cambiarEstadoPedido(pedidoId: number, nuevoEstado: EstadoPedido): Observable<PedidoResponseDTO> {
     console.log('🔵 [ORDERS SERVICE] Cambiando estado del pedido', pedidoId, 'a:', nuevoEstado);
@@ -508,8 +597,8 @@ export class OrdersService {
           throw error;
         })
       );
-    } else if (nuevoEstado === EstadoPedido.PENDIENTE) {
-      // Para cancelar, necesitaríamos un endpoint específico o usar el existente de cancelar
+    } else if (nuevoEstado === EstadoPedido.CANCELADO) {
+      // Usar endpoint cancelar para marcar como cancelado
       return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/cancelar`, {}).pipe(
         tap(response => {
           console.log('🔵 [ORDERS SERVICE] Pedido cancelado:', response);
@@ -519,8 +608,17 @@ export class OrdersService {
           throw error;
         })
       );
+    } else if (nuevoEstado === EstadoPedido.PENDIENTE) {
+      // Para volver a pendiente, usar endpoint específico si existe, o confirmar por defecto
+      console.log('🟡 [ORDERS SERVICE] Volviendo a pendiente, usando confirmar por defecto');
+      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}).pipe(
+        catchError((error: HttpErrorResponse) => {
+          console.error('🔴 [ORDERS SERVICE] Error al cambiar estado:', error);
+          throw error;
+        })
+      );
     } else {
-      // Para otros estados, por ahora usar confirmar por defecto
+      // Para otros estados, usar confirmar por defecto
       console.log('🟡 [ORDERS SERVICE] Estado no específico, usando confirmar por defecto');
       return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}).pipe(
         catchError((error: HttpErrorResponse) => {
@@ -545,5 +643,81 @@ export class OrdersService {
   // Obtener todos los pedidos (para administración)
   getAllPedidos(): Observable<Pedido[]> {
     return of([...this.pedidos]);
+  }
+
+  // Obtener un pedido específico por ID
+  getPedidoPorId(pedidoId: number): Observable<Pedido> {
+    console.log('🔵 [ORDERS SERVICE] Obteniendo pedido por ID:', pedidoId);
+    console.log('🔵 [ORDERS SERVICE] URL completa:', `${this.API_URL}/pedidos/${pedidoId}`);
+    
+    return this.http.get<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}`).pipe(
+      tap(response => {
+        console.log('🔵 [ORDERS SERVICE] Pedido obtenido del backend:', response);
+      }),
+      map(response => this.mapToPedido(response)),
+      catchError((error: HttpErrorResponse) => {
+        console.error('🔴 [ORDERS SERVICE] Error al obtener pedido:', error);
+        if (error.status === 404) {
+          throw new Error('Pedido no encontrado');
+        }
+        throw error;
+      })
+    );
+  }
+
+  // Obtener pedidos por cliente
+  getPedidosPorCliente(clienteId: number): Observable<Pedido[]> {
+    console.log('🔵 [ORDERS SERVICE] Obteniendo pedidos por cliente:', clienteId);
+    console.log('🔵 [ORDERS SERVICE] URL completa:', `${this.API_URL}/pedidos?clienteId=${clienteId}`);
+    
+    return this.http.get<PedidoResponseDTO[]>(`${this.API_URL}/pedidos?clienteId=${clienteId}`).pipe(
+      tap(response => {
+        console.log('🔵 [ORDERS SERVICE] Pedidos del cliente obtenidos:', response);
+      }),
+      map(response => response.map(dto => this.mapToPedido(dto))),
+      catchError((error: HttpErrorResponse) => {
+        console.error('🔴 [ORDERS SERVICE] Error al obtener pedidos del cliente:', error);
+        if (error.status === 404) {
+          throw new Error('Cliente no encontrado');
+        }
+        throw error;
+      })
+    );
+  }
+
+  // Crear nota de devolución
+  crearNotaDevolucion(clienteId: number, items: any[]): Observable<any> {
+    console.log('🔵 [ORDERS SERVICE] Creando nota de devolución para cliente:', clienteId);
+    console.log('🔵 [ORDERS SERVICE] Items:', items);
+    
+    // Crear la devolución primero
+    return this.http.post(`${this.API_URL}/devoluciones/crear?clienteId=${clienteId}`, {}).pipe(
+      switchMap((devolucion: any) => {
+        console.log('🔵 [ORDERS SERVICE] Devolución creada:', devolucion);
+        
+        // Agregar cada item uno por uno usando concatMap
+        return from(items).pipe(
+          concatMap(item => {
+            console.log('🔵 [ORDERS SERVICE] Agregando item:', item);
+            return this.http.post(`${this.API_URL}/devoluciones/${devolucion.id}/items?varianteId=${item.varianteId}&cantidad=${item.cantidad}&motivo=Devolución por solicitud del cliente`, {});
+          }),
+          toArray(),
+          map((responses) => {
+            console.log('🔵 [ORDERS SERVICE] Respuestas de agregar items:', responses);
+            return devolucion;
+          }),
+          tap(() => {
+            console.log('🔵 [ORDERS SERVICE] Todos los items agregados exitosamente');
+          })
+        );
+      }),
+      catchError((error: any) => {
+        console.error('🔴 [ORDERS SERVICE] Error al crear nota de devolución:', error);
+        console.error('🔴 [ORDERS SERVICE] Error status:', error.status);
+        console.error('🔴 [ORDERS SERVICE] Error message:', error.message);
+        console.error('🔴 [ORDERS SERVICE] Error body:', error.error);
+        throw error;
+      })
+    );
   }
 }

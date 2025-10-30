@@ -35,6 +35,30 @@
     </div>
   </div>
 
+  <!-- Selector de usuario (solo para administradores) - Fuera del contenido principal -->
+  <div *ngIf="isAdmin" class="user-selector-header">
+    <div class="user-selector-content">
+      <label class="user-selector-label">Seleccionar Cliente:</label>
+      <select 
+        [(ngModel)]="selectedUserId" 
+        (change)="onUserChange()"
+        (ngModelChange)="onUserChange()"
+        class="user-select"
+        [disabled]="loadingUsers">
+        <option value="">Seleccionar cliente...</option>
+        <option *ngFor="let user of usuarios" [value]="user.id">
+          {{ user.nombreRazonSocial }} ({{ user.email }})
+        </option>
+      </select>
+      <div *ngIf="loadingUsers" class="loading-indicator">
+        Cargando usuarios...
+      </div>
+      <div *ngIf="selectedUser" class="selected-user-info">
+        <strong>Cliente seleccionado:</strong> {{ selectedUser.nombreRazonSocial }}
+      </div>
+    </div>
+  </div>
+
   <div class="cart-content">
     <h2>Carrito de Compras</h2>
   
@@ -85,8 +109,9 @@
       </div>
     </div>
     
+
     <div class="cart-actions">
-      <button (click)="generarPedido()" class="btn-primary">
+      <button (click)="generarPedido()" class="btn-primary" [disabled]="isAdmin && !selectedUserId">
         Generar Nota de Pedido
       </button>
     </div>

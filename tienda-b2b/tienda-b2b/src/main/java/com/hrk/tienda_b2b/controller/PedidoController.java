@@ -5,6 +5,7 @@ import com.hrk.tienda_b2b.dto.PedidoResponseDTO;
 import com.hrk.tienda_b2b.service.PedidoService;
 import com.hrk.tienda_b2b.model.Pedido;
 import com.hrk.tienda_b2b.model.DetallePedido;
+import com.hrk.tienda_b2b.model.EstadoPedido;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -203,6 +204,8 @@ public class PedidoController {
                     .clienteId(pedido.getClienteId())
                     .fecha(pedido.getFecha().toString())
                     .estado(pedido.getEstado().toString())
+                    .tipo(pedido.getTipo() != null ? pedido.getTipo().toString() : "PEDIDO") // ⭐ NUEVO: Incluir tipo de documento
+                    .tipoAprobacionDevolucion(pedido.getTipoAprobacionDevolucion() != null ? pedido.getTipoAprobacionDevolucion().toString() : null) // ⭐ NUEVO: Tipo de aprobación para devoluciones
                     .total(pedido.getTotal())
                     .metodoPago(pedido.getMetodoPago()) // ⭐ NUEVO: Incluir método de pago
                     .detalles(detallesDTO)
@@ -234,20 +237,39 @@ public class PedidoController {
     @PostMapping("/{pedidoId}/confirmar")
     public ResponseEntity<?> confirmarPedido(@PathVariable Long pedidoId) {
         try {
-            System.out.println("🔵 [PEDIDO CONTROLLER] Confirmando pedido: " + pedidoId);
+            System.out.println("🔵 [PEDIDO CONTROLLER] Procesando confirmación para pedido: " + pedidoId);
             
-            Pedido pedido = pedidoService.confirmarPedido(pedidoId);
-            PedidoResponseDTO responseDTO = convertirPedidoADTO(pedido, null);
+            // Primero obtener el pedido para ver su estado
+            Pedido pedidoActual = pedidoService.obtenerPedidoPorId(pedidoId);
+            if (pedidoActual == null) {
+                throw new IllegalArgumentException("Pedido no encontrado con ID: " + pedidoId);
+            }
             
-            System.out.println("✅ [PEDIDO CONTROLLER] Pedido confirmado exitosamente");
-            return ResponseEntity.ok(responseDTO);
+            // ⭐ Si está en DOCUMENTADO o BORRADOR, confirmar (descontar stock)
+            // Si está en CONFIRMADO, marcar como ENTREGADO (solo cambiar estado)
+            if (pedidoActual.getEstado() == EstadoPedido.DOCUMENTADO || 
+                pedidoActual.getEstado() == EstadoPedido.BORRADOR) {
+                System.out.println("🔵 [PEDIDO CONTROLLER] Confirmando pedido y descontando stock...");
+                Pedido pedido = pedidoService.confirmar(pedidoId);
+                PedidoResponseDTO responseDTO = convertirPedidoADTO(pedido, null);
+                System.out.println("✅ [PEDIDO CONTROLLER] Pedido confirmado - Stock descontado");
+                return ResponseEntity.ok(responseDTO);
+            } else if (pedidoActual.getEstado() == EstadoPedido.CONFIRMADO) {
+                System.out.println("🔵 [PEDIDO CONTROLLER] Marcando pedido como ENTREGADO...");
+                Pedido pedido = pedidoService.confirmarPedido(pedidoId);
+                PedidoResponseDTO responseDTO = convertirPedidoADTO(pedido, null);
+                System.out.println("✅ [PEDIDO CONTROLLER] Pedido marcado como ENTREGADO");
+                return ResponseEntity.ok(responseDTO);
+            } else {
+                throw new IllegalStateException("No se puede confirmar un pedido en estado: " + pedidoActual.getEstado());
+            }
             
         } catch (IllegalArgumentException e) {
             System.out.println("🔴 [PEDIDO CONTROLLER] Pedido no encontrado: " + e.getMessage());
             return ResponseEntity.status(404).body(crearRespuestaError("Pedido no encontrado: " + e.getMessage()));
         } catch (IllegalStateException e) {
             System.out.println("🔴 [PEDIDO CONTROLLER] Estado inválido: " + e.getMessage());
-            return ResponseEntity.status(400).body(crearRespuestaError("Estado inválido: " + e.getMessage()));
+            return ResponseEntity.status(400).body(crearRespuestaError(e.getMessage()));
         } catch (Exception e) {
             System.out.println("🔴 [PEDIDO CONTROLLER] Error al confirmar pedido: " + e.getMessage());
             e.printStackTrace();
@@ -258,12 +280,13 @@ public class PedidoController {
     @PostMapping("/{pedidoId}/cancelar")
     public ResponseEntity<?> cancelarPedido(@PathVariable Long pedidoId) {
         try {
-            System.out.println("🔵 [PEDIDO CONTROLLER] Cancelando pedido: " + pedidoId);
+            System.out.println("🔵 [PEDIDO CONTROLLER] Cancelando pedido (con restauración de stock): " + pedidoId);
             
-            Pedido pedido = pedidoService.cancelarPedido(pedidoId);
+            // ⭐ IMPORTANTE: Usar cancelar() en lugar de cancelarPedido() para que restaure stock
+            Pedido pedido = pedidoService.cancelar(pedidoId);
             PedidoResponseDTO responseDTO = convertirPedidoADTO(pedido, null);
             
-            System.out.println("✅ [PEDIDO CONTROLLER] Pedido cancelado exitosamente");
+            System.out.println("✅ [PEDIDO CONTROLLER] Pedido cancelado exitosamente - Stock restaurado");
             return ResponseEntity.ok(responseDTO);
             
         } catch (IllegalArgumentException e) {
@@ -271,7 +294,7 @@ public class PedidoController {
             return ResponseEntity.status(404).body(crearRespuestaError("Pedido no encontrado: " + e.getMessage()));
         } catch (IllegalStateException e) {
             System.out.println("🔴 [PEDIDO CONTROLLER] Estado inválido: " + e.getMessage());
-            return ResponseEntity.status(400).body(crearRespuestaError("Estado inválido: " + e.getMessage()));
+            return ResponseEntity.status(400).body(crearRespuestaError(e.getMessage()));
         } catch (Exception e) {
             System.out.println("🔴 [PEDIDO CONTROLLER] Error al cancelar pedido: " + e.getMessage());
             e.printStackTrace();

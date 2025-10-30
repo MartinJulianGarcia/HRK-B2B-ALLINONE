@@ -1,4 +1,4 @@
-<div class="add-product-container">
+<div class="edit-product-container add-product-container">
   <!-- Header negro con logo y navegación -->
   <div class="admin-header">
     <div class="header-left">
@@ -38,11 +38,14 @@
   <!-- Formulario de agregar producto -->
   <div class="form-container">
     <div class="form-header">
-      <h1>➕ Agregar Nuevo Producto</h1>
-      <p>Completa todos los campos para agregar un nuevo producto al catálogo</p>
+      <h1 *ngIf="loadingProduct">Cargando producto...</h1>
+      <h1 *ngIf="!loadingProduct">✏️ Modificar Producto</h1>
+      <p *ngIf="!loadingProduct">Modifica los campos que desees actualizar del producto</p>
     </div>
 
-    <form (ngSubmit)="onSubmit()" #productForm="ngForm" class="product-form">
+    <div *ngIf="loadingProduct" class="loading">Cargando producto...</div>
+
+    <form *ngIf="!loadingProduct" (ngSubmit)="onSubmit()" #productForm="ngForm" class="product-form">
       <div class="form-row">
         <div class="form-group">
           <label for="nombre">Nombre del Producto *</label>
@@ -183,10 +186,10 @@
           <label for="imagen" class="file-label">
             📷 Seleccionar Imagen
           </label>
-          <div class="image-preview" *ngIf="productData.imagen">
+          <div class="image-preview" *ngIf="productData.imagen || imagenActualUrl">
             <div class="preview-container">
-              <img [src]="productData.imagenBase64" [alt]="productData.imagen.name" class="preview-image" *ngIf="productData.imagenBase64">
-              <span class="file-name">{{ productData.imagen.name }}</span>
+              <img [src]="productData.imagenBase64 || imagenActualUrl" [alt]="productData.imagen?.name || 'Imagen actual'" class="preview-image">
+              <span class="file-name">{{ productData.imagen?.name || 'Imagen actual del producto' }}</span>
             </div>
           </div>
         </div>
@@ -331,7 +334,7 @@
         >
           <span *ngIf="loading">⏳</span>
           <span *ngIf="!loading">✅</span>
-          {{ loading ? 'Guardando...' : 'Guardar Producto' }}
+          {{ loading ? 'Guardando...' : 'Actualizar Producto' }}
         </button>
       </div>
 

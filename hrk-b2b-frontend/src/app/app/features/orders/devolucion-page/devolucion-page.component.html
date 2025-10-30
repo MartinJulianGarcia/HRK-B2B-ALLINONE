@@ -1,0 +1,130 @@
+<!-- Header -->
+<div class="header">
+  <div class="header-content">
+    <div class="header-left">
+      <h1>Nota de Devolución</h1>
+      <div *ngIf="cliente" class="cliente-info">
+        <strong>Cliente:</strong> {{ cliente.nombreRazonSocial }}
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Contenido principal -->
+<div class="devolucion-container">
+  <!-- Estado de carga -->
+  <div *ngIf="loading" class="loading-state">
+    <p>Cargando pedidos entregados...</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="error-state">
+    <p>{{ error }}</p>
+    <button (click)="volverAlHistorial()" class="btn-secondary">
+      Volver al Historial
+    </button>
+  </div>
+
+  <!-- Sin pedidos entregados -->
+  <div *ngIf="!loading && !error && pedidosEntregados.length === 0" class="empty-state">
+    <h3>No hay pedidos entregados</h3>
+    <p>Este cliente no tiene pedidos entregados para generar una devolución.</p>
+    <button (click)="volverAlHistorial()" class="btn-primary">
+      Volver al Historial
+    </button>
+  </div>
+
+  <!-- Lista de pedidos entregados -->
+  <div *ngIf="!loading && !error && pedidosEntregados.length > 0" class="pedidos-section">
+    <div class="section-header">
+      <h2>Pedidos Entregados</h2>
+      <p>Selecciona los items que deseas incluir en la nota de devolución</p>
+    </div>
+
+    <div class="pedidos-list">
+      <div *ngFor="let pedido of pedidosEntregados" class="pedido-card">
+        <div class="pedido-header">
+          <h3>Pedido #{{ pedido.id }}</h3>
+          <div class="pedido-info">
+            <span class="fecha">{{ formatearFecha(pedido.fecha.toString()) }}</span>
+            <span class="monto">{{ formatearMonto(pedido.montoTotal) }}</span>
+          </div>
+        </div>
+
+        <div class="items-section">
+          <h4>Items del Pedido</h4>
+          <div *ngIf="pedido.items && pedido.items.length > 0; else noItems" class="items-list">
+            <div *ngFor="let item of pedido.items" class="item-row">
+              <div class="item-checkbox">
+                <input 
+                  type="checkbox" 
+                  [id]="'item-' + pedido.id + '-' + item.id"
+                  [checked]="isItemSeleccionado(pedido.id, item.id)"
+                  (change)="toggleItemSeleccion(pedido.id, item.id)"
+                  class="checkbox-input">
+                <label [for]="'item-' + pedido.id + '-' + item.id" class="checkbox-label">
+                  Seleccionar
+                </label>
+              </div>
+              
+              <div class="item-info">
+                <div class="item-producto">
+                  <strong>Producto ID: {{ item.productoId }}</strong>
+                  <span class="item-variante">{{ item.variante?.color }} - {{ item.variante?.talle }}</span>
+                </div>
+                <div class="item-details">
+                  <div class="cantidad-section">
+                    <span class="cantidad-label">Cantidad original: {{ item.cantidad }}</span>
+                    <div *ngIf="isItemSeleccionado(pedido.id, item.id)" class="cantidad-devolucion">
+                      <label>Cantidad a devolver:</label>
+                      <input 
+                        type="number" 
+                        [value]="getCantidadDevolucion(pedido.id, item.id)"
+                        (input)="onCantidadInput($event, pedido.id, item.id)"
+                        [max]="getCantidadMaxima(pedido.id, item.id)"
+                        min="1"
+                        class="cantidad-input"
+                      >
+                      <span class="cantidad-max">(máx: {{ getCantidadMaxima(pedido.id, item.id) }})</span>
+                    </div>
+                  </div>
+                  <span class="precio">Precio: {{ formatearMonto(item.precioUnitario) }}</span>
+                  <span class="subtotal">Subtotal: {{ formatearMonto(item.subtotal) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <ng-template #noItems>
+            <p class="no-items">No hay items en este pedido</p>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen y acciones -->
+    <div class="resumen-section">
+      <div class="resumen-info">
+        <h3>Resumen de Selección</h3>
+        <p>Items seleccionados: <strong>{{ getItemsSeleccionados().length }}</strong></p>
+      </div>
+      
+      <div class="actions">
+        <button (click)="volverAlHistorial()" class="btn-secondary">
+          Cancelar
+        </button>
+        <button 
+          (click)="generarNotaDevolucion()" 
+          class="btn-primary"
+          [disabled]="getItemsSeleccionados().length === 0">
+          Generar Nota de Devolución
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

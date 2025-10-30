@@ -270,4 +270,9 @@ export class CartService {
       });
     });
   }
+
+  // Obtener cantidad de items en el carrito
+  getCartItemCount(): number {
+    return this.carritoItems.reduce((total, item) => total + item.cantidad, 0);
+  }
 }

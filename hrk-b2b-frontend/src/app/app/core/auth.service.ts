@@ -192,6 +192,17 @@ export class AuthService {
     return of(this.mockClients);
   }
 
+  // Obtener todos los usuarios (solo para administradores)
+  getUsuarios(): Observable<Usuario[]> {
+    return this.http.get<Usuario[]>(`${this.API_URL}/usuarios`, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError(error => {
+          console.error('Error al obtener usuarios:', error);
+          return throwError(() => new Error('Error al cargar usuarios'));
+        })
+      );
+  }
+
   selectClient(cliente: Cliente): void {
     this.selectedClientSubject.next(cliente);
     if (typeof window !== 'undefined' && window.localStorage) {

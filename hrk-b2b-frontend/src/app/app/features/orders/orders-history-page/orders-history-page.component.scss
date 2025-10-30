@@ -228,11 +228,12 @@ $dark-gray: #495057;
 .filter-section {
   display: flex;
   align-items: center;
-  gap: 20px;
+  justify-content: space-between;
   margin-bottom: 30px;
   padding: 20px;
   background: $light-gray;
   border-radius: 8px;
+  flex-wrap: wrap;
 }
 
 .filter-label {
@@ -254,6 +255,63 @@ $dark-gray: #495057;
     border-color: $secondary-color;
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
   }
+}
+
+// Filtros individuales
+.user-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 300px;
+}
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  margin-left: auto;
+}
+
+.user-select {
+  padding: 8px 12px;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  min-width: 200px;
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: $secondary-color;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  }
+
+  &:disabled {
+    background: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+  }
+}
+
+.loading-indicator {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 11px;
+  white-space: nowrap;
+  margin-top: 5px;
+}
+
+.selected-user-info {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #155724;
+  font-size: 11px;
+  white-space: nowrap;
+  margin-top: 5px;
 }
 
 // Tabla
@@ -290,14 +348,37 @@ $dark-gray: #495057;
   display: grid;
   grid-template-columns: 100px 1fr 1fr 1fr 1fr 120px;
   border-bottom: 1px solid $border-color;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 
   &:hover {
-    background: $light-gray;
+    transform: translateX(2px);
+    box-shadow: -2px 0 0 0 currentColor;
   }
 
   &:last-child {
     border-bottom: none;
+  }
+
+  // Estilos para filas de pedidos (fondo claro azul)
+  &.row-pedido {
+    background: linear-gradient(to right, rgba(0, 123, 255, 0.04) 0%, rgba(255, 255, 255, 0) 3px);
+    border-left: 3px solid #007bff;
+    
+    &:hover {
+      background: linear-gradient(to right, rgba(0, 123, 255, 0.08) 0%, rgba(255, 255, 255, 0) 3px);
+      box-shadow: -3px 0 0 0 #007bff;
+    }
+  }
+
+  // Estilos para filas de devoluciones (fondo claro violeta)
+  &.row-devolucion {
+    background: linear-gradient(to right, rgba(111, 66, 193, 0.04) 0%, rgba(255, 255, 255, 0) 3px);
+    border-left: 3px solid #8e44ad;
+    
+    &:hover {
+      background: linear-gradient(to right, rgba(111, 66, 193, 0.08) 0%, rgba(255, 255, 255, 0) 3px);
+      box-shadow: -3px 0 0 0 #8e44ad;
+    }
   }
 }
 
@@ -315,34 +396,76 @@ $dark-gray: #495057;
 .estado-pendiente {
   color: #ffc107;
   font-weight: 500;
+  background: rgba(255, 193, 7, 0.1);
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.estado-confirmado {
+  color: #17a2b8;
+  font-weight: 500;
+  background: rgba(23, 162, 184, 0.1);
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(23, 162, 184, 0.3);
 }
 
 .estado-entregado {
   color: #28a745;
   font-weight: 500;
+  background: rgba(40, 167, 69, 0.1);
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(40, 167, 69, 0.3);
 }
 
-// Tipos
+.estado-cancelado {
+  color: #dc3545;
+  font-weight: 500;
+  background: rgba(220, 53, 69, 0.1);
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+// Tipos - Badges sutiles pero diferenciados
 .tipo-pedido {
-  background: $dark-gray;
-  color: $white;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
   border: none;
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 5px 12px;
+  border-radius: 16px;
   font-size: 12px;
   font-weight: 500;
   cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 1px 3px rgba(0, 123, 255, 0.25);
+  
+  .tipo-icon {
+    font-size: 14px;
+  }
 }
 
 .tipo-devolucion {
-  background: $medium-gray;
-  color: $white;
+  background: linear-gradient(135deg, #8e44ad 0%, #6f42c1 100%);
+  color: white;
   border: none;
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 5px 12px;
+  border-radius: 16px;
   font-size: 12px;
   font-weight: 500;
   cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 1px 3px rgba(142, 68, 173, 0.3);
+  
+  .tipo-icon {
+    font-size: 14px;
+  }
 }
 
 // Botón de ver detalle
@@ -385,7 +508,7 @@ $dark-gray: #495057;
   cursor: pointer;
   transition: all 0.3s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: darken($secondary-color, 10%);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
@@ -394,6 +517,23 @@ $dark-gray: #495057;
   &:active {
     transform: translateY(0);
   }
+
+  &:disabled,
+  &.disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.6;
+  }
+}
+
+.devolucion-hint {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
 }
 
 // Responsive

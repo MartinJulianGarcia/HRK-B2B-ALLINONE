@@ -10,12 +10,18 @@
       <td class="color">{{ c }}</td>
       <td *ngFor="let t of talles()">
         <ng-container *ngIf="findVariante(c,t) as v; else noVar">
-          <input type="number" min="0" [value]="0"
-                 (change)="onChange(c,t,$any($event.target).value)"
-                 [class.over]="false" placeholder="0">
+          <input type="text" [value]="getCantidad(c,t)"
+                 (input)="onInputChange(c,t,$event)"
+                 (blur)="onBlur(c,t,$event)"
+                 (keydown)="onKeyDown(c,t,$event)"
+                 (keyup)="onKeyUp(c,t,$event)"
+                 [class.over]="overStock(c,t)"
+                 placeholder="0">
           <div class="sku">{{ v.sku }}</div>
           <div class="precio">${{ v.precio }}</div>
-          <div class="stock">Stock: {{ v.stockDisponible }}</div>
+          <div class="stock" [class.stock-warning]="overStock(c,t)">
+            Stock: {{ v.stockDisponible }}
+          </div>
         </ng-container>
         <ng-template #noVar>—</ng-template>
       </td>

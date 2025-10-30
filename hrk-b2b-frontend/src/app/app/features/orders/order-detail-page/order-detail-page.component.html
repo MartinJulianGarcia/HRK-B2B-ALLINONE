@@ -85,31 +85,75 @@
           <label>Tipo:</label>
           <span>{{ pedido.tipo }}</span>
         </div>
+        <!-- Mostrar tipo de aprobación para devoluciones confirmadas -->
+        <div class="info-item" *ngIf="esDevolucion() && pedido.tipoAprobacionDevolucion">
+          <label>Tipo de Aprobación:</label>
+          <span [class]="getTipoAprobacionClass(pedido.tipoAprobacionDevolucion)">
+            {{ pedido.tipoAprobacionDevolucion === 'APTA' ? '✅ APTA (Stock Devuelto)' : '⚠️ SCRAP (Merma Registrada)' }}
+          </span>
+        </div>
       </div>
     </div>
 
-    <!-- Cambio de estado -->
-    <div class="status-change-card">
-      <h3>Cambiar Estado del Pedido</h3>
+    <!-- Cambio de estado (solo para administradores) -->
+    <div *ngIf="isAdmin" class="status-change-card">
+      <h3>Gestionar Estado del Pedido</h3>
       <div class="status-controls">
-        <label for="nuevoEstado">Estado actual: <strong>{{ pedido.estado }}</strong></label>
-        <div class="status-input-group">
-          <select 
-            id="nuevoEstado" 
-            [(ngModel)]="nuevoEstado" 
-            class="status-select"
-            [disabled]="cambiandoEstado">
-            <option *ngFor="let estado of estadosDisponibles" [value]="estado.value">
-              {{ estado.label }}
-            </option>
-          </select>
+        <label>Estado actual: <strong>{{ pedido.estado }}</strong></label>
+        
+        <!-- Botones de acción rápida -->
+        <!-- Mostrar botones para pedidos CONFIRMADOS o PENDIENTES (para marcar como ENTREGADO o CANCELAR) -->
+        <div class="quick-actions" *ngIf="isPendienteOrConfirmado() && !esDevolucion()">
           <button 
-            class="change-status-btn"
-            (click)="cambiarEstado()"
-            [disabled]="!nuevoEstado || nuevoEstado === pedido.estado || cambiandoEstado">
-            <span *ngIf="!cambiandoEstado">Actualizar Estado</span>
-            <span *ngIf="cambiandoEstado">Actualizando...</span>
+            class="deliver-btn"
+            (click)="marcarComoEntregado()"
+            [disabled]="cambiandoEstado || isEntregado()">
+            <span *ngIf="!cambiandoEstado">✅ Marcar como Entregado</span>
+            <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
           </button>
+          <button 
+            class="cancel-btn"
+            (click)="marcarComoCancelado()"
+            [disabled]="cambiandoEstado || isCancelado() || isEntregado()">
+            <span *ngIf="!cambiandoEstado">❌ Marcar como Cancelado</span>
+            <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
+          </button>
+        </div>
+        
+        <!-- Botones para aprobar devoluciones -->
+        <div class="devolucion-actions" *ngIf="esDevolucion() && isAdmin">
+          <h4>Gestionar Devolución</h4>
+          
+          <!-- Botones de aprobación si la devolución está pendiente -->
+          <div class="quick-actions" *ngIf="esDevolucionPendiente()">
+            <button 
+              class="apta-btn"
+              (click)="aprobarDevolucionApta()"
+              [disabled]="cambiandoEstado">
+              <span *ngIf="!cambiandoEstado">✅ Aprobar como APTA (Devuelve Stock)</span>
+              <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
+            </button>
+            <button 
+              class="scrap-btn"
+              (click)="aprobarDevolucionScrap()"
+              [disabled]="cambiandoEstado">
+              <span *ngIf="!cambiandoEstado">⚠️ Aprobar como SCRAP (No Devuelve Stock)</span>
+              <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
+            </button>
+          </div>
+          
+          <!-- Mensaje si ya fue aprobada -->
+          <div class="status-info" *ngIf="esDevolucionAprobada()">
+            <p class="status-message">✅ Esta devolución ya ha sido aprobada</p>
+          </div>
+        </div>
+        
+        <!-- Mensaje para otros estados (solo pedidos normales, no devoluciones) -->
+        <div class="status-info" *ngIf="!esDevolucion() && isEntregadoOrCancelado() && !isPendienteOrConfirmado()">
+          <p class="status-message">
+            <span *ngIf="isEntregado()">✅ Este pedido ya ha sido entregado</span>
+            <span *ngIf="isCancelado()">❌ Este pedido ha sido cancelado</span>
+          </p>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { CartService, PedidoDTO, CarritoItemDTO } from '../../../core/cart.service';
 import { OrdersService } from '../../../core/orders.service';
-import { AuthService } from '../../../core/auth.service';
+import { AuthService, Usuario } from '../../../core/auth.service';
 
 @Component({
   selector: 'app-cart-page',
@@ -35,6 +35,13 @@ export class CartPageComponent implements OnInit {
   searchTerm = '';
   searchResults: any[] = [];
 
+  // Selector de usuario (solo para administradores)
+  isAdmin = false;
+  usuarios: Usuario[] = [];
+  selectedUserId: number | null = null;
+  selectedUser: Usuario | null = null;
+  loadingUsers = false;
+
   constructor(
     private cart: CartService, 
     private orders: OrdersService,
@@ -47,6 +54,12 @@ export class CartPageComponent implements OnInit {
     this.carritoId = this.cart.getCarritoId();
     this.loadCarritoItems();
     this.updateCartCount();
+    
+    // Verificar si es administrador y cargar usuarios
+    this.isAdmin = this.authService.isAdmin();
+    if (this.isAdmin) {
+      this.loadUsuarios();
+    }
   }
 
   loadCarritoItems(): void {
@@ -93,10 +106,9 @@ export class CartPageComponent implements OnInit {
       return;
     }
 
-    // Obtener cliente ID
-    const currentUser = this.authService.getCurrentUser();
-    if (!currentUser?.id) {
-      alert('Error: No se pudo identificar al cliente');
+    // Validar selección de usuario para administradores
+    if (this.isAdmin && !this.selectedUserId) {
+      alert('Por favor selecciona un cliente para generar el pedido');
       return;
     }
 
@@ -111,13 +123,56 @@ export class CartPageComponent implements OnInit {
       return;
     }
 
-    const currentUser = this.authService.getCurrentUser();
-    if (!currentUser?.id) {
-      alert('Error: No se pudo identificar al cliente');
-      return;
+    // Obtener cliente ID (usuario seleccionado para admin, usuario actual para cliente)
+    let clienteId: number;
+    let usuarioInfo: any;
+
+    if (this.isAdmin) {
+      // Para administradores: usar el usuario seleccionado si hay uno, sino el actual
+      if (this.selectedUser) {
+        clienteId = this.selectedUser.id;
+        usuarioInfo = {
+          nombreRazonSocial: this.selectedUser.nombreRazonSocial,
+          email: this.selectedUser.email
+        };
+        console.log('🔵 [CART] Admin - Usando cliente seleccionado:', this.selectedUser);
+      } else {
+        // Si no hay usuario seleccionado, usar el admin actual
+        const currentUser = this.authService.getCurrentUser();
+        if (!currentUser?.id) {
+          alert('Error: No se pudo identificar al usuario');
+          return;
+        }
+        clienteId = currentUser.id;
+        usuarioInfo = {
+          nombreRazonSocial: currentUser.nombreRazonSocial,
+          email: currentUser.email
+        };
+        console.log('🔵 [CART] Admin - Usando admin actual:', currentUser);
+      }
+    } else {
+      // Para clientes normales, usar el usuario actual
+      const currentUser = this.authService.getCurrentUser();
+      if (!currentUser?.id) {
+        alert('Error: No se pudo identificar al cliente');
+        return;
+      }
+      clienteId = currentUser.id;
+      usuarioInfo = {
+        nombreRazonSocial: currentUser.nombreRazonSocial,
+        email: currentUser.email
+      };
+      console.log('🔵 [CART] Cliente - Usando usuario actual:', currentUser);
     }
 
-    console.log('🔵 [CART] Generando pedido con método de pago:', this.selectedPaymentMethod);
+    console.log('🔵 [CART] ===== DEBUGGING PEDIDO =====');
+    console.log('🔵 [CART] Método de pago:', this.selectedPaymentMethod);
+    console.log('🔵 [CART] Es admin?', this.isAdmin);
+    console.log('🔵 [CART] selectedUserId:', this.selectedUserId, 'tipo:', typeof this.selectedUserId);
+    console.log('🔵 [CART] selectedUser:', this.selectedUser);
+    console.log('🔵 [CART] Cliente ID final:', clienteId);
+    console.log('🔵 [CART] Usuario info final:', usuarioInfo);
+    console.log('🔵 [CART] ================================');
 
     // Generar pedido real usando el servicio de pedidos
     const items = this.carritoItems.map(item => ({
@@ -132,13 +187,7 @@ export class CartPageComponent implements OnInit {
     // Guardar método de pago antes de limpiar
     const metodoPagoLabel = this.getPaymentMethodLabel();
     
-    // Preparar información del usuario para enviar al backend
-    const usuarioInfo = {
-      nombreRazonSocial: currentUser.nombreRazonSocial,
-      email: currentUser.email
-    };
-    
-    this.orders.crearPedido(currentUser.id, items, this.selectedPaymentMethod, usuarioInfo).subscribe({
+    this.orders.crearPedido(clienteId, items, this.selectedPaymentMethod, usuarioInfo).subscribe({
       next: (pedido) => {
         console.log('🔵 [CART] Pedido creado exitosamente:', pedido);
         console.log('🔵 [CART] ID del pedido:', pedido.id, 'es positivo?', pedido.id > 0);
@@ -328,6 +377,43 @@ export class CartPageComponent implements OnInit {
       setTimeout(() => {
         result.element.classList.remove('search-highlight');
       }, 2000);
+    }
+  }
+
+    // Métodos para selector de usuario (solo para administradores)
+    loadUsuarios(): void {
+      this.loadingUsers = true;
+      console.log('🔵 [CART] Cargando usuarios desde la base de datos');
+      
+      this.authService.getUsuarios().subscribe({
+        next: (usuarios) => {
+          // Incluir tanto CLIENTES como ADMINISTRADORES (para que los admins puedan comprar para otros)
+          this.usuarios = usuarios.filter(user => 
+            user.tipoUsuario === 'CLIENTE' || user.tipoUsuario === 'ADMIN'
+          );
+          this.loadingUsers = false;
+          console.log('🔵 [CART] Usuarios cargados desde BD:', this.usuarios);
+        },
+        error: (error) => {
+          console.error('🔴 [CART] Error al cargar usuarios:', error);
+          this.loadingUsers = false;
+          alert('Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.');
+        }
+      });
+    }
+
+  onUserChange(): void {
+    console.log('🔵 [CART] onUserChange llamado con selectedUserId:', this.selectedUserId, 'tipo:', typeof this.selectedUserId);
+    
+    if (this.selectedUserId) {
+      // Convertir a number si viene como string del HTML
+      const userId = typeof this.selectedUserId === 'string' ? parseInt(this.selectedUserId, 10) : this.selectedUserId;
+      this.selectedUser = this.usuarios.find(u => u.id === userId) || null;
+      console.log('🔵 [CART] Usuario encontrado:', this.selectedUser);
+      console.log('🔵 [CART] Lista de usuarios disponible:', this.usuarios.map(u => ({ id: u.id, nombre: u.nombreRazonSocial })));
+    } else {
+      this.selectedUser = null;
+      console.log('🔵 [CART] No hay usuario seleccionado');
     }
   }
 }

@@ -20,14 +20,8 @@ export class OrderDetailPageComponent implements OnInit {
   error?: string;
   cartItemCount = 0;
   
-  // Estados disponibles para cambiar (basados en los del backend)
-  estadosDisponibles: { value: EstadoPedido; label: string }[] = [
-    { value: EstadoPedido.PENDIENTE, label: 'Pendiente' },
-    { value: EstadoPedido.ENTREGADO, label: 'Entregado' }
-  ];
-  
-  nuevoEstado?: EstadoPedido;
   cambiandoEstado = false;
+  isAdmin = false; // ⭐ NUEVO: Verificar si es administrador
 
   // Funcionalidad de búsqueda
   showSearchModal = false;
@@ -43,6 +37,10 @@ export class OrderDetailPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Verificar si es administrador
+    this.isAdmin = this.authService.isAdmin();
+    console.log('🔵 [ORDER DETAIL] Es admin?', this.isAdmin);
+    
     // Obtener el ID del pedido desde la ruta
     this.route.params.subscribe(params => {
       this.pedidoId = +params['id'];
@@ -62,64 +60,47 @@ export class OrderDetailPageComponent implements OnInit {
     this.loading = true;
     this.error = undefined;
 
-    // Por ahora, vamos a buscar el pedido en el historial del cliente
-    // Más adelante podríamos crear un endpoint específico para obtener un pedido por ID
-    const currentUser = this.authService.getCurrentUser();
-    if (!currentUser?.id) {
-      this.error = 'No se pudo identificar al cliente';
-      this.loading = false;
-      return;
-    }
-
-    this.ordersService.getHistorialPorCliente(currentUser.id).subscribe({
-      next: pedidos => {
-        console.log('🔵 [ORDER DETAIL] Pedidos cargados:', pedidos);
-        this.pedido = pedidos.find(p => p.id === this.pedidoId);
-        
-        if (!this.pedido) {
-          this.error = 'Pedido no encontrado';
-        } else {
-          this.nuevoEstado = this.pedido.estado;
-          console.log('🔵 [ORDER DETAIL] Pedido encontrado:', this.pedido);
-          console.log('🔵 [ORDER DETAIL] Usuario del pedido:', this.pedido.usuario);
-          console.log('🔵 [ORDER DETAIL] Método de pago:', this.pedido.metodoPago);
-        }
+    // Usar el endpoint específico para obtener el pedido por ID
+    this.ordersService.getPedidoPorId(this.pedidoId).subscribe({
+      next: pedido => {
+        console.log('🔵 [ORDER DETAIL] Pedido obtenido:', pedido);
+        this.pedido = pedido;
+        console.log('🔵 [ORDER DETAIL] Usuario del pedido:', this.pedido.usuario);
+        console.log('🔵 [ORDER DETAIL] Método de pago:', this.pedido.metodoPago);
         this.loading = false;
       },
       error: error => {
-        console.error('🔴 [ORDER DETAIL] Error al cargar pedidos:', error);
-        this.error = 'Error al cargar los detalles del pedido';
+        console.error('🔴 [ORDER DETAIL] Error al cargar pedido:', error);
+        this.error = 'Pedido no encontrado';
         this.loading = false;
       }
     });
   }
 
-  cambiarEstado(): void {
-    if (!this.pedido || !this.nuevoEstado || this.nuevoEstado === this.pedido.estado) {
+  marcarComoEntregado(): void {
+    if (!this.pedido || this.pedido.estado === EstadoPedido.ENTREGADO) {
       return;
     }
 
     this.cambiandoEstado = true;
-    console.log('🔵 [ORDER DETAIL] Cambiando estado del pedido', this.pedido.id, 'a:', this.nuevoEstado);
+    console.log('🔵 [ORDER DETAIL] Marcando pedido como entregado:', this.pedido.id);
 
-    // Llamar al backend para cambiar el estado
-    this.ordersService.cambiarEstadoPedido(this.pedido.id, this.nuevoEstado).subscribe({
+    // Llamar al backend para marcar como entregado
+    this.ordersService.cambiarEstadoPedido(this.pedido.id, EstadoPedido.ENTREGADO).subscribe({
       next: (response) => {
-        console.log('🔵 [ORDER DETAIL] Estado actualizado exitosamente:', response);
+        console.log('🔵 [ORDER DETAIL] Pedido marcado como entregado:', response);
         
-        // Actualizar el pedido local con la respuesta del backend
-        if (response) {
-          this.pedido!.estado = this.nuevoEstado!;
-        }
+        // Actualizar el pedido local
+        this.pedido!.estado = EstadoPedido.ENTREGADO;
         
         this.cambiandoEstado = false;
-        alert(`✅ Estado del pedido #${this.pedido?.id} actualizado exitosamente a: ${this.nuevoEstado}`);
+        alert(`✅ Pedido #${this.pedido?.id} marcado como entregado exitosamente`);
       },
       error: (error) => {
-        console.error('🔴 [ORDER DETAIL] Error al cambiar estado:', error);
+        console.error('🔴 [ORDER DETAIL] Error al marcar como entregado:', error);
         this.cambiandoEstado = false;
         
-        let errorMessage = 'Error al cambiar el estado del pedido.';
+        let errorMessage = 'Error al marcar el pedido como entregado.';
         if (error.status === 500) {
           errorMessage = 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.';
         } else if (error.status === 404) {
@@ -130,6 +111,57 @@ export class OrderDetailPageComponent implements OnInit {
       }
     });
   }
+
+  marcarComoCancelado(): void {
+    // Solo se pueden cancelar pedidos CONFIRMADOS (no ENTREGADOS)
+    if (!this.pedido || this.pedido.estado === EstadoPedido.CANCELADO || 
+        this.pedido.estado === EstadoPedido.ENTREGADO) {
+      if (this.pedido?.estado === EstadoPedido.ENTREGADO) {
+        alert('❌ No se pueden cancelar pedidos que ya están ENTREGADOS');
+      }
+      return;
+    }
+
+    // Confirmar antes de cancelar
+    const confirmacion = confirm(
+      `¿Estás seguro de que quieres cancelar el pedido #${this.pedido.id}?\n\n` +
+      `Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmacion) {
+      return;
+    }
+
+    this.cambiandoEstado = true;
+    console.log('🔵 [ORDER DETAIL] Marcando pedido como cancelado:', this.pedido.id);
+
+    // Llamar al backend para marcar como cancelado
+    this.ordersService.cambiarEstadoPedido(this.pedido.id, EstadoPedido.CANCELADO).subscribe({
+      next: (response) => {
+        console.log('🔵 [ORDER DETAIL] Pedido marcado como cancelado:', response);
+        
+        // Actualizar el pedido local
+        this.pedido!.estado = EstadoPedido.CANCELADO;
+        
+        this.cambiandoEstado = false;
+        alert(`✅ Pedido #${this.pedido?.id} marcado como cancelado exitosamente`);
+      },
+      error: (error) => {
+        console.error('🔴 [ORDER DETAIL] Error al marcar como cancelado:', error);
+        this.cambiandoEstado = false;
+        
+        let errorMessage = 'Error al marcar el pedido como cancelado.';
+        if (error.status === 500) {
+          errorMessage = 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.';
+        } else if (error.status === 404) {
+          errorMessage = 'Pedido no encontrado.';
+        }
+        
+        alert(`❌ ${errorMessage}`);
+      }
+    });
+  }
+
 
   formatearFecha(fecha: Date): string {
     if (!fecha) return '';
@@ -151,9 +183,148 @@ export class OrderDetailPageComponent implements OnInit {
         return 'estado-pendiente';
       case EstadoPedido.ENTREGADO:
         return 'estado-entregado';
+      case EstadoPedido.CANCELADO:
+        return 'estado-cancelado';
       default:
         return '';
     }
+  }
+
+  getTipoAprobacionClass(tipo: 'APTA' | 'SCRAP'): string {
+    return tipo === 'APTA' ? 'tipo-aprobacion-apta' : 'tipo-aprobacion-scrap';
+  }
+
+  // Métodos helper para verificar estados en el template
+  isPendiente(): boolean {
+    return this.pedido?.estado === EstadoPedido.PENDIENTE;
+  }
+
+  isConfirmado(): boolean {
+    return this.pedido?.estado === EstadoPedido.CONFIRMADO;
+  }
+
+  isEntregado(): boolean {
+    return this.pedido?.estado === EstadoPedido.ENTREGADO;
+  }
+
+  isCancelado(): boolean {
+    return this.pedido?.estado === EstadoPedido.CANCELADO;
+  }
+
+  isPendienteOrConfirmado(): boolean {
+    return this.isPendiente() || this.isConfirmado();
+  }
+
+  isEntregadoOrCancelado(): boolean {
+    return this.isEntregado() || this.isCancelado();
+  }
+
+  esDevolucion(): boolean {
+    return this.pedido?.tipo === TipoPedido.DEVOLUCION;
+  }
+
+  // Verificar si la devolución ya fue aprobada
+  esDevolucionAprobada(): boolean {
+    return this.esDevolucion() && this.pedido?.estado === EstadoPedido.CONFIRMADO;
+  }
+
+  // Verificar si la devolución está pendiente de aprobación
+  esDevolucionPendiente(): boolean {
+    return this.esDevolucion() && this.pedido?.estado !== EstadoPedido.CONFIRMADO;
+  }
+
+  // Métodos para aprobar devoluciones
+  aprobarDevolucionApta(): void {
+    if (!this.pedido || !this.esDevolucion()) {
+      return;
+    }
+
+    // Solo se puede aprobar si no está confirmada
+    if (this.pedido.estado === EstadoPedido.CONFIRMADO) {
+      alert('⚠️ Esta devolución ya ha sido aprobada');
+      return;
+    }
+
+    const confirmacion = confirm(
+      `¿Aprobar esta devolución como APTA?\n\n` +
+      `✅ El stock será devuelto al inventario.\n` +
+      `Esta acción cambiará el estado de la devolución.`
+    );
+
+    if (!confirmacion) {
+      return;
+    }
+
+    this.cambiandoEstado = true;
+    console.log('🔵 [ORDER DETAIL] Aprobando devolución como apta:', this.pedido.id);
+
+    this.ordersService.aprobarDevolucionApta(this.pedido.id).subscribe({
+      next: (response) => {
+        console.log('✅ [ORDER DETAIL] Devolución aprobada como apta:', response);
+        this.pedido!.estado = EstadoPedido.CONFIRMADO;
+        this.cambiandoEstado = false;
+        alert('✅ Devolución aprobada como APTA. Stock devuelto al inventario.');
+        this.loadPedido(); // Recargar para ver cambios
+      },
+      error: (error) => {
+        console.error('🔴 [ORDER DETAIL] Error al aprobar devolución:', error);
+        this.cambiandoEstado = false;
+        let errorMessage = 'Error al aprobar la devolución.';
+        if (error.status === 500) {
+          errorMessage = 'Error interno del servidor.';
+        } else if (error.status === 400) {
+          errorMessage = error.error?.error || 'No es una devolución válida.';
+        }
+        alert(`❌ ${errorMessage}`);
+      }
+    });
+  }
+
+  aprobarDevolucionScrap(): void {
+    if (!this.pedido || !this.esDevolucion()) {
+      return;
+    }
+
+    // Solo se puede aprobar si no está confirmada
+    if (this.pedido.estado === EstadoPedido.CONFIRMADO) {
+      alert('⚠️ Esta devolución ya ha sido aprobada');
+      return;
+    }
+
+    const confirmacion = confirm(
+      `¿Aprobar esta devolución como SCRAP?\n\n` +
+      `⚠️ El stock NO será devuelto al inventario.\n` +
+      `Solo se registrará como desperfecto/merma.\n\n` +
+      `¿Continuar?`
+    );
+
+    if (!confirmacion) {
+      return;
+    }
+
+    this.cambiandoEstado = true;
+    console.log('🔵 [ORDER DETAIL] Aprobando devolución como scrap:', this.pedido.id);
+
+    this.ordersService.aprobarDevolucionScrap(this.pedido.id).subscribe({
+      next: (response) => {
+        console.log('✅ [ORDER DETAIL] Devolución aprobada como scrap:', response);
+        this.pedido!.estado = EstadoPedido.CONFIRMADO;
+        this.cambiandoEstado = false;
+        alert('⚠️ Devolución aprobada como SCRAP. Stock NO devuelto (registrado como merma).');
+        this.loadPedido(); // Recargar para ver cambios
+      },
+      error: (error) => {
+        console.error('🔴 [ORDER DETAIL] Error al aprobar devolución:', error);
+        this.cambiandoEstado = false;
+        let errorMessage = 'Error al aprobar la devolución.';
+        if (error.status === 500) {
+          errorMessage = 'Error interno del servidor.';
+        } else if (error.status === 400) {
+          errorMessage = error.error?.error || 'No es una devolución válida.';
+        }
+        alert(`❌ ${errorMessage}`);
+      }
+    });
   }
 
   // Métodos de navegación

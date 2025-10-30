@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { OrdersService, Pedido, EstadoPedido, TipoPedido } from '../../../core/orders.service';
-import { AuthService } from '../../../core/auth.service';
+import { AuthService, Usuario } from '../../../core/auth.service';
 import { CartService } from '../../../core/cart.service';
 
 @Component({
@@ -27,6 +27,13 @@ export class OrdersHistoryPageComponent implements OnInit {
   searchTerm = '';
   searchResults: any[] = [];
 
+  // Selector de usuario (solo para administradores)
+  isAdmin = false;
+  usuarios: Usuario[] = [];
+  selectedUserId: number | null = null;
+  selectedUser: Usuario | null = null;
+  loadingUsers = false;
+
   constructor(
     private ordersService: OrdersService,
     private authService: AuthService,
@@ -35,19 +42,37 @@ export class OrdersHistoryPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Obtener el clienteId del usuario actual
+    // Verificar si es administrador
+    this.isAdmin = this.authService.isAdmin();
+    console.log('🔵 [ORDERS HISTORY] Es admin?', this.isAdmin);
+
+    // Obtener usuario actual
     const currentUser = this.authService.getCurrentUser();
     console.log('🔵 [ORDERS HISTORY] Usuario actual:', currentUser);
-    this.clienteId = currentUser?.id;
-    console.log('🔵 [ORDERS HISTORY] Cliente ID obtenido:', this.clienteId);
-
-    if (!this.clienteId) {
-      this.error = 'No se pudo identificar al cliente';
-      console.error('🔴 [ORDERS HISTORY] Error: No se pudo obtener cliente ID');
+    
+    if (!currentUser?.id) {
+      this.error = 'No se pudo identificar al usuario';
+      console.error('🔴 [ORDERS HISTORY] Error: No se pudo obtener usuario ID');
       return;
     }
 
-    this.loadPedidos();
+    if (this.isAdmin) {
+      // Para administradores: cargar usuarios y mostrar su propio historial por defecto
+      this.loadUsuarios();
+      // Establecer su propio ID como cliente por defecto
+      this.clienteId = currentUser.id;
+      this.selectedUserId = currentUser.id;
+      this.selectedUser = currentUser;
+      console.log('🔵 [ORDERS HISTORY] Admin - Cliente ID por defecto:', this.clienteId);
+      // Cargar pedidos del admin por defecto
+      this.loadPedidos();
+    } else {
+      // Para clientes normales, usar su propio ID
+      this.clienteId = currentUser.id;
+      console.log('🔵 [ORDERS HISTORY] Cliente ID obtenido:', this.clienteId);
+      this.loadPedidos();
+    }
+
     this.updateCartCount();
   }
 
@@ -74,6 +99,42 @@ export class OrdersHistoryPageComponent implements OnInit {
         this.pedidos = [];
         this.pedidosFiltrados = [];
       }
+    });
+  }
+
+  loadTodosLosPedidos(): void {
+    this.loading = true;
+    this.error = undefined;
+
+    this.ordersService.getTodosLosPedidos().subscribe({
+      next: pedidos => {
+        this.pedidos = pedidos;
+        this.aplicarFiltro();
+        this.loading = false;
+        console.log('🔵 [ORDERS HISTORY] Todos los pedidos cargados:', pedidos.length);
+      },
+      error: error => {
+        console.error('Error al cargar todos los pedidos:', error);
+        this.error = 'Error al cargar todos los pedidos';
+        this.loading = false;
+        this.pedidos = [];
+        this.pedidosFiltrados = [];
+      }
+    });
+  }
+
+  // Generar nota de devolución
+  generarNotaDevolucion(): void {
+    if (!this.selectedUserId) {
+      alert('Por favor selecciona un cliente específico para generar la nota de devolución');
+      return;
+    }
+
+    console.log('🔵 [ORDERS HISTORY] Generando nota de devolución para cliente:', this.selectedUserId);
+    
+    // Navegar al componente de devolución con el ID del cliente
+    this.router.navigate(['/devolucion'], { 
+      queryParams: { clienteId: this.selectedUserId } 
     });
   }
 
@@ -110,8 +171,12 @@ export class OrdersHistoryPageComponent implements OnInit {
     switch (estado) {
       case EstadoPedido.PENDIENTE:
         return 'estado-pendiente';
+      case EstadoPedido.CONFIRMADO:
+        return 'estado-confirmado';
       case EstadoPedido.ENTREGADO:
         return 'estado-entregado';
+      case EstadoPedido.CANCELADO:
+        return 'estado-cancelado';
       default:
         return '';
     }
@@ -124,7 +189,29 @@ export class OrdersHistoryPageComponent implements OnInit {
       case TipoPedido.DEVOLUCION:
         return 'tipo-devolucion';
       default:
-        return '';
+        return 'tipo-pedido';
+    }
+  }
+
+  getRowClass(tipo: TipoPedido): string {
+    switch (tipo) {
+      case TipoPedido.PEDIDO:
+        return 'row-pedido';
+      case TipoPedido.DEVOLUCION:
+        return 'row-devolucion';
+      default:
+        return 'row-pedido';
+    }
+  }
+
+  getTipoIcon(tipo: TipoPedido): string {
+    switch (tipo) {
+      case TipoPedido.PEDIDO:
+        return '📦';
+      case TipoPedido.DEVOLUCION:
+        return '↩️';
+      default:
+        return '📦';
     }
   }
 
@@ -142,9 +229,6 @@ export class OrdersHistoryPageComponent implements OnInit {
     }).format(monto);
   }
 
-  generarNotaDevolucion(): void {
-    alert('Función disponible próximamente');
-  }
 
   // Métodos de navegación
   logout(): void {
@@ -257,6 +341,48 @@ export class OrdersHistoryPageComponent implements OnInit {
       setTimeout(() => {
         result.element.classList.remove('search-highlight');
       }, 2000);
+    }
+  }
+
+  // Métodos para selector de usuario (solo para administradores)
+  loadUsuarios(): void {
+    this.loadingUsers = true;
+    console.log('🔵 [ORDERS HISTORY] Cargando usuarios desde la base de datos');
+    
+    this.authService.getUsuarios().subscribe({
+      next: (usuarios) => {
+        // Incluir tanto CLIENTES como ADMINISTRADORES (para que los admins puedan ver su propio historial)
+        this.usuarios = usuarios.filter(user => 
+          user.tipoUsuario === 'CLIENTE' || user.tipoUsuario === 'ADMIN'
+        );
+        this.loadingUsers = false;
+        console.log('🔵 [ORDERS HISTORY] Usuarios cargados desde BD:', this.usuarios);
+      },
+      error: (error) => {
+        console.error('🔴 [ORDERS HISTORY] Error al cargar usuarios:', error);
+        this.loadingUsers = false;
+        alert('Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.');
+      }
+    });
+  }
+
+  onUserChange(): void {
+    if (this.selectedUserId) {
+      this.selectedUser = this.usuarios.find(u => u.id === this.selectedUserId) || null;
+      this.clienteId = this.selectedUserId;
+      console.log('🔵 [ORDERS HISTORY] Usuario seleccionado:', this.selectedUser);
+      console.log('🔵 [ORDERS HISTORY] Cliente ID actualizado:', this.clienteId);
+      
+      // Cargar pedidos del usuario seleccionado
+      this.loadPedidos();
+    } else {
+      // Si no hay selección, cargar todos los pedidos (para admins)
+      this.selectedUser = null;
+      this.clienteId = undefined;
+      console.log('🔵 [ORDERS HISTORY] Cargando todos los pedidos');
+      
+      // Cargar todos los pedidos
+      this.loadTodosLosPedidos();
     }
   }
 }

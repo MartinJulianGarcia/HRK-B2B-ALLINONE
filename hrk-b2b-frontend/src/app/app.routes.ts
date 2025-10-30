@@ -9,7 +9,9 @@ import { InfoPageComponent } from './app/features/info/info-page/info-page.compo
 import { ProfilePageComponent } from './app/features/profile/profile-page/profile-page.component';
 import { OrdersHistoryPageComponent } from './app/features/orders/orders-history-page/orders-history-page.component';
 import { OrderDetailPageComponent } from './app/features/orders/order-detail-page/order-detail-page.component';
+import { DevolucionPageComponent } from './app/features/orders/devolucion-page/devolucion-page.component';
 import { AddProductPageComponent } from './app/features/admin/add-product-page/add-product-page.component';
+import { EditProductPageComponent } from './app/features/admin/edit-product-page/edit-product-page.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -22,5 +24,7 @@ export const routes: Routes = [
   { path: 'profile', component: ProfilePageComponent },
   { path: 'orders-history', component: OrdersHistoryPageComponent },
   { path: 'order-detail/:id', component: OrderDetailPageComponent },
-  { path: 'add-product', component: AddProductPageComponent }
+  { path: 'devolucion', component: DevolucionPageComponent },
+  { path: 'add-product', component: AddProductPageComponent },
+  { path: 'edit-product/:id', component: EditProductPageComponent }
 ];

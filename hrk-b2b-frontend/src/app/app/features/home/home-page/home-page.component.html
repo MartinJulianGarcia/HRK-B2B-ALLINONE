@@ -121,6 +121,15 @@
     <div class="detail-container">
       <div class="product-image-large">
         <img [src]="selectedProduct.imagenUrl" [alt]="selectedProduct.nombre" />
+        <!-- Botón de modificar solo para ADMIN -->
+        <button 
+          *ngIf="isAdmin()"
+          class="edit-product-btn"
+          (click)="goToEditProduct(selectedProduct.id)"
+          title="Modificar Producto"
+        >
+          ✏️ Modificar Producto
+        </button>
       </div>
       
       <div class="product-variants">

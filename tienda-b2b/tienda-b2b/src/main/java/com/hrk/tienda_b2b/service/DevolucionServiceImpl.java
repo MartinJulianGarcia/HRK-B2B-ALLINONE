@@ -8,6 +8,7 @@ import com.hrk.tienda_b2b.repository.PedidoRepository;
 import com.hrk.tienda_b2b.repository.ProductoVarianteRepository;
 import com.hrk.tienda_b2b.repository.DetallePedidoRepository;
 import com.hrk.tienda_b2b.repository.MovimientoStockRepository;
+import com.hrk.tienda_b2b.repository.UsuarioRepository;
 import java.time.LocalDateTime;
 
 
@@ -19,14 +20,34 @@ public class DevolucionServiceImpl implements DevolucionService {
     private final ProductoVarianteRepository varianteRepo;
     private final DetallePedidoRepository detalleRepo;
     private final MovimientoStockRepository movRepo;
+    private final UsuarioRepository usuarioRepo;
 
     @Override @Transactional
     public Pedido crearDevolucion(Long clienteId, Long pedidoOrigenId) {
+        System.out.println("🔵 [DEVOLUCION SERVICE] Creando devolución para cliente: " + clienteId + ", pedido origen: " + pedidoOrigenId);
+        
+        // Buscar el usuario para establecer la relación
+        Usuario usuario = usuarioRepo.findById(clienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+        
+        // ⭐ Validar que el pedido origen esté ENTREGADO
+        if (pedidoOrigenId != null) {
+            Pedido pedidoOrigen = pedidoRepo.findById(pedidoOrigenId)
+                    .orElseThrow(() -> new IllegalArgumentException("Pedido origen no encontrado con ID: " + pedidoOrigenId));
+            
+            if (pedidoOrigen.getEstado() != EstadoPedido.ENTREGADO) {
+                throw new IllegalStateException("Solo se pueden crear devoluciones de pedidos ENTREGADOS. El pedido origen está en estado: " + pedidoOrigen.getEstado());
+            }
+            
+            System.out.println("✅ [DEVOLUCION SERVICE] Pedido origen validado - Estado: ENTREGADO");
+        }
+        
         Pedido p = Pedido.builder()
                 .clienteId(clienteId)
+                .usuario(usuario) // Establecer la relación con Usuario
                 .pedidoOrigenId(pedidoOrigenId)
                 .tipo(TipoDocumento.DEVOLUCION)
-                .estado(EstadoPedido.DOCUMENTADO)
+                .estado(EstadoPedido.BORRADOR) // Empieza como BORRADOR, luego DOCUMENTADO cuando se agregan items
                 .fecha(LocalDateTime.now())
                 .total(0.0) // puede ser 0 si solo registrás físicas; si hacés nota de crédito, calculás
                 .build();
@@ -35,13 +56,16 @@ public class DevolucionServiceImpl implements DevolucionService {
 
     @Override @Transactional
     public Pedido agregarItem(Long devolucionId, Long varianteId, int cantidad, String motivo) {
+        System.out.println("🔵 [DEVOLUCION SERVICE] Agregando item a devolución ID: " + devolucionId);
+        System.out.println("🔵 [DEVOLUCION SERVICE] VarianteId: " + varianteId + ", Cantidad: " + cantidad);
+        
         Pedido p = pedidoRepo.findById(devolucionId)
                 .orElseThrow(() -> new IllegalArgumentException("Devolución no encontrada"));
 
         if (p.getTipo() != TipoDocumento.DEVOLUCION)
             throw new IllegalStateException("El documento no es una devolución");
 
-        if (p.getEstado() != EstadoPedido.DOCUMENTADO && p.getEstado() != EstadoPedido.BORRADOR)
+        if (p.getEstado() != EstadoPedido.DOCUMENTADO && p.getEstado() != EstadoPedido.BORRADOR && p.getEstado() != EstadoPedido.CONFIRMADO)
             throw new IllegalStateException("No se puede editar en estado " + p.getEstado());
 
         ProductoVariante v = varianteRepo.findById(varianteId)
@@ -49,6 +73,7 @@ public class DevolucionServiceImpl implements DevolucionService {
 
         // El precio ahora siempre está en la variante
         Double precio = v.getPrecio();
+        System.out.println("🔵 [DEVOLUCION SERVICE] Precio unitario: " + precio);
 
         DetallePedido d = DetallePedido.builder()
                 .pedido(p)
@@ -65,7 +90,13 @@ public class DevolucionServiceImpl implements DevolucionService {
                 .mapToDouble(it -> it.getPrecioUnitario() * it.getCantidad())
                 .sum());
 
-        return p;
+        System.out.println("🔵 [DEVOLUCION SERVICE] Total actualizado: " + p.getTotal());
+        
+        // Guardar el pedido actualizado
+        Pedido pedidoActualizado = pedidoRepo.save(p);
+        System.out.println("🔵 [DEVOLUCION SERVICE] Pedido guardado exitosamente");
+        
+        return pedidoActualizado;
     }
 
     @Override @Transactional
@@ -92,7 +123,8 @@ public class DevolucionServiceImpl implements DevolucionService {
                     .fecha(LocalDateTime.now())
                     .build());
         }
-        p.setEstado(EstadoPedido.CONFIRMADO); // o APROBADO si agregás el estado
+        p.setEstado(EstadoPedido.CONFIRMADO);
+        p.setTipoAprobacionDevolucion(TipoAprobacionDevolucion.APTA); // ⭐ Registrar tipo de aprobación
         return pedidoRepo.save(p);
     }
 
@@ -117,7 +149,8 @@ public class DevolucionServiceImpl implements DevolucionService {
                     .fecha(LocalDateTime.now())
                     .build());
         }
-        p.setEstado(EstadoPedido.CONFIRMADO); // o APROBADO
+        p.setEstado(EstadoPedido.CONFIRMADO);
+        p.setTipoAprobacionDevolucion(TipoAprobacionDevolucion.SCRAP); // ⭐ Registrar tipo de aprobación
         return pedidoRepo.save(p);
     }
 

@@ -157,6 +157,39 @@ public class ProductoController {
                 .build();
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> actualizarProducto(@PathVariable Long id, @RequestBody CreateProductoRequest request) {
+        try {
+            System.out.println("=================================================");
+            System.out.println("🔵 [CONTROLLER] Request de actualización recibido para ID: " + id);
+            System.out.println("🔵 [CONTROLLER] Nombre: " + request.getNombre());
+            System.out.println("🔵 [CONTROLLER] Tipo: " + request.getTipo());
+            System.out.println("🔵 [CONTROLLER] Categoría: " + request.getCategoria());
+            System.out.println("🔵 [CONTROLLER] Imagen URL: " + request.getImagenUrl());
+            System.out.println("=================================================");
+            
+            // Llamar al servicio para actualizar el producto
+            Producto actualizado = productoService.actualizarProducto(id, request);
+            System.out.println("✅ [CONTROLLER] Producto actualizado exitosamente con ID: " + actualizado.getId());
+            System.out.println("=================================================");
+            
+            // Convertir a DTO para evitar referencia circular
+            ProductoResponseDTO responseDTO = convertirADTO(actualizado);
+            
+            return ResponseEntity.ok(responseDTO);
+            
+        } catch (IllegalArgumentException e) {
+            System.out.println("🔴 [CONTROLLER] Error de validación: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(crearRespuestaError(e.getMessage()));
+            
+        } catch (Exception e) {
+            System.out.println("🔴 [CONTROLLER] Error inesperado: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(crearRespuestaError("Error interno del servidor: " + e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarProducto(@PathVariable Long id) {
         productoService.eliminar(id);

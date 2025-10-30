@@ -360,6 +360,10 @@ export class HomePageComponent implements OnInit {
     this.router.navigate(['/orders-history']);
   }
 
+  goToEditProduct(productId: number): void {
+    this.router.navigate(['/edit-product', productId]);
+  }
+
   goToAddProduct(): void {
     this.router.navigate(['/add-product']);
   }

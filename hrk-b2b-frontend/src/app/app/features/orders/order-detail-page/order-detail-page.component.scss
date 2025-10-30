@@ -223,17 +223,18 @@ $light-gray: #f8f9fa;
 }
 
 .logout-btn {
-  background: rgba(255, 255, 255, 0.1);
+  background: none;
+  border: 1px solid white;
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 8px 16px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   transition: all 0.3s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: white;
+    color: black;
   }
 }
 
@@ -332,6 +333,24 @@ $light-gray: #f8f9fa;
     background: #d4edda;
     color: #155724;
   }
+  
+  &.estado-cancelado {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  // Estilos para tipo de aprobación de devoluciones
+  &.tipo-aprobacion-apta {
+    background-color: #d4edda;
+    color: #155724;
+    font-weight: 600;
+  }
+  
+  &.tipo-aprobacion-scrap {
+    background-color: #fff3cd;
+    color: #856404;
+    font-weight: 600;
+  }
 }
 
 .info-grid {
@@ -380,52 +399,162 @@ $light-gray: #f8f9fa;
   }
 }
 
-.status-input-group {
+.quick-actions {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #28a745;
   display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: center;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  align-items: flex-start;
 }
 
-.status-select {
-  padding: 10px 12px;
-  border: 2px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-  min-width: 200px;
-  
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-  }
-  
-  &:disabled {
-    background: #f8f9fa;
-    cursor: not-allowed;
-  }
-}
-
-.change-status-btn {
-  background: #28a745;
+.deliver-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
+  padding: 12px 24px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
-  min-width: 150px;
+  font-weight: 600;
+  width: 100%;
+  max-width: 300px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
   
   &:hover:not(:disabled) {
-    background: #218838;
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
   }
   
   &:disabled {
     background: #6c757d;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.cancel-btn {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  max-width: 300px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+  
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+  }
+  
+  &:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+// Estilos para botones de devolución
+.devolucion-actions {
+  margin-top: 20px;
+  
+  h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  .quick-actions {
+    border-left-color: #ffc107; // Color naranja/amarillo para devoluciones
+  }
+}
+
+.apta-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  max-width: 300px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+  
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+  }
+  
+  &:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.scrap-btn {
+  background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  max-width: 300px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+  
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e0a800 0%, #e86800 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 193, 7, 0.4);
+  }
+  
+  &:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.status-info {
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.status-message {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
 }
 

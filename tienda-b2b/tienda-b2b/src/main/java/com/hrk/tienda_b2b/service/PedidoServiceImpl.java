@@ -136,19 +136,25 @@ public class PedidoServiceImpl implements PedidoService {
     @Override
     @Transactional
     public Pedido cancelar(Long pedidoId) {
+        System.out.println("🔵 [BACKEND] Cancelando pedido (restaurando stock): " + pedidoId);
+        
         Pedido p = pedidoRepo.findById(pedidoId)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
 
+        // ⭐ Solo se pueden cancelar pedidos CONFIRMADOS (no ENTREGADOS, esos ya no se cancelan)
         if (p.getEstado() != EstadoPedido.CONFIRMADO) {
-            throw new IllegalStateException("Sólo se cancelan pedidos confirmados");
+            throw new IllegalStateException("Solo se pueden cancelar pedidos CONFIRMADOS. Estado actual: " + p.getEstado() + ". Los pedidos ENTREGADOS no se pueden cancelar.");
         }
 
+        // Restaurar stock de todas las variantes
         for (DetallePedido d : p.getDetalles()) {
             ProductoVariante v = varianteRepo.findById(d.getVariante().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada"));
 
             v.setStockDisponible(v.getStockDisponible() + d.getCantidad());
             varianteRepo.save(v);
+            
+            System.out.println("🔵 [BACKEND] Stock restaurado para variante " + v.getSku() + ": +" + d.getCantidad());
 
             movRepo.save(MovimientoStock.builder()
                     .variante(v)
@@ -161,52 +167,36 @@ public class PedidoServiceImpl implements PedidoService {
         }
 
         p.setEstado(EstadoPedido.CANCELADO);
+        System.out.println("✅ [BACKEND] Pedido cancelado - Stock restaurado");
         return pedidoRepo.save(p);
     }
 
     @Override
     @Transactional
     public Pedido confirmarPedido(Long pedidoId) {
-        System.out.println("🔵 [BACKEND] Confirmando pedido: " + pedidoId);
+        System.out.println("🔵 [BACKEND] Marcando pedido como ENTREGADO: " + pedidoId);
         
         Pedido pedido = pedidoRepo.findById(pedidoId)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con ID: " + pedidoId));
         
-        // Verificar que el pedido esté en estado válido para confirmar
-        if (pedido.getEstado() != EstadoPedido.BORRADOR && 
-            pedido.getEstado() != EstadoPedido.DOCUMENTADO && 
-            pedido.getEstado() != EstadoPedido.CONFIRMADO) {
-            throw new IllegalStateException("No se puede confirmar un pedido en estado: " + pedido.getEstado());
+        // ⭐ Solo se puede marcar como ENTREGADO desde CONFIRMADO
+        // El stock ya está descontado en CONFIRMADO, no se toca aquí
+        if (pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+            throw new IllegalStateException("Solo se pueden marcar como ENTREGADO los pedidos CONFIRMADOS. Estado actual: " + pedido.getEstado());
         }
         
         pedido.setEstado(EstadoPedido.ENTREGADO);
+        System.out.println("✅ [BACKEND] Pedido marcado como ENTREGADO - Stock se mantiene descontado");
         return pedidoRepo.save(pedido);
     }
 
     @Override
     @Transactional
     public Pedido cancelarPedido(Long pedidoId) {
-        System.out.println("🔵 [BACKEND] Cancelando pedido: " + pedidoId);
-        
-        Pedido pedido = pedidoRepo.findById(pedidoId)
-                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado con ID: " + pedidoId));
-        
-        // Verificar que el pedido esté en estado válido para cancelar
-        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
-            throw new IllegalStateException("El pedido ya está cancelado");
-        }
-        
-        // TEMPORAL: Permitir cancelar pedidos entregados para testing
-        // TODO: Remover esta validación en producción
-        if (pedido.getEstado() == EstadoPedido.ENTREGADO) {
-            System.out.println("⚠️ [BACKEND] ADVERTENCIA: Cancelando pedido ya entregado (solo para testing)");
-        }
-        
-        // Log del estado actual para debugging
-        System.out.println("🔵 [BACKEND] Estado actual del pedido: " + pedido.getEstado());
-        
-        pedido.setEstado(EstadoPedido.CANCELADO);
-        return pedidoRepo.save(pedido);
+        // ⭐ Este método ya no se usa directamente, se usa cancelar() que restaura stock
+        // Pero lo dejamos para compatibilidad, redirige a cancelar()
+        System.out.println("🔵 [BACKEND] cancelarPedido() llamado - redirigiendo a cancelar() que restaura stock");
+        return cancelar(pedidoId);
     }
 
     @Override

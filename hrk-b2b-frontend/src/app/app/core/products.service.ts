@@ -204,7 +204,8 @@ export class ProductsService {
       talles: productData.talles || [],
       precio: productData.precio,
       stock: productData.stock,
-      descripcion: productData.descripcion || ''
+      descripcion: productData.descripcion || '',
+      stockPorVariante: productData.stockPorVariante // ⭐ AGREGAR STOCK POR VARIANTE
     };
 
     // Verificar si hay imagen
@@ -241,10 +242,13 @@ export class ProductsService {
           const normalizedUrl = this.normalizeImageUrl(imageUrl);
           console.log('🔵 [FRONTEND] URL normalizada:', normalizedUrl);
           
-          // Agregar URL de imagen al request
+          // Agregar URL de imagen al request (mantener stockPorVariante)
           const request = { ...requestBase, imagenUrl: normalizedUrl };
           console.log('🔵 [FRONTEND] 📤 Request CON imagen al backend:', request);
           console.log('🔵 [FRONTEND] ✅ imagenUrl que se envía al backend:', request.imagenUrl);
+          console.log('🔵 [FRONTEND] 🔍 STOCK POR VARIANTE EN REQUEST:', request.stockPorVariante);
+          console.log('🔵 [FRONTEND] 🔍 TIPO DE STOCK POR VARIANTE:', typeof request.stockPorVariante);
+          console.log('🔵 [FRONTEND] 🔍 JSON STRINGIFY:', JSON.stringify(request.stockPorVariante));
           
     return this.http.post(`${this.API_URL}/productos`, request);
         }),
@@ -275,6 +279,80 @@ export class ProductsService {
       console.log('🔵 [FRONTEND] No hay imagen personalizada, el backend usará imagen por defecto');
       console.log('🔵 [FRONTEND] Request sin imagen:', requestBase);
       return this.http.post(`${this.API_URL}/productos`, requestBase);
+    }
+  }
+
+  updateProduct(productId: number, productData: any): Observable<any> {
+    console.log('🔵 [FRONTEND] Actualizando producto ID:', productId);
+    console.log('🔵 [FRONTEND] Datos a actualizar:', productData);
+    
+    // Validar que los campos requeridos no sean null o undefined
+    if (!productData.tipo || !productData.categoria) {
+      console.error('🔴 [FRONTEND] Error: Tipo o categoría vacíos', {
+        tipo: productData.tipo,
+        categoria: productData.categoria
+      });
+      throw new Error('Tipo y categoría son obligatorios');
+    }
+    
+    // Preparar request básico
+    const requestBase: any = {
+      nombre: productData.nombre,
+      tipo: productData.tipo,
+      categoria: productData.categoria,
+      sku: productData.sku,
+      colores: productData.colores || [],
+      talles: productData.talles || [],
+      precio: productData.precio,
+      stock: productData.stock,
+      descripcion: productData.descripcion || '',
+      stockPorVariante: productData.stockPorVariante
+    };
+
+    // Verificar si hay imagen nueva
+    console.log('🔵 [FRONTEND] Verificando imagen:', {
+      imagen: productData.imagen,
+      esFile: productData.imagen instanceof File,
+      nombre: productData.imagen?.name
+    });
+
+    // Si hay imagen nueva, subirla primero
+    if (productData.imagen && productData.imagen instanceof File) {
+      console.log('🔵 [FRONTEND] Subiendo nueva imagen personalizada:', productData.imagen.name);
+      
+      return this.uploadImage(productData.imagen).pipe(
+        switchMap((imageUrl: string) => {
+          console.log('🔵 [FRONTEND] 🎉 Imagen subida exitosamente, URL:', imageUrl);
+          
+          // Verificar si la respuesta es HTML (significa que algo está mal)
+          if (typeof imageUrl === 'string' && (imageUrl.includes('<!DOCTYPE html>') || imageUrl.includes('<!DOCTYPE'))) {
+            console.error('🔴 [FRONTEND] ❌ El backend devolvió HTML en lugar del filename.');
+            console.log('🟡 [FRONTEND] Actualizando producto sin nueva imagen personalizada...');
+            return this.http.put(`${this.API_URL}/productos/${productId}`, requestBase);
+          }
+          
+          // Normalizar la URL de la imagen
+          const normalizedUrl = this.normalizeImageUrl(imageUrl);
+          console.log('🔵 [FRONTEND] URL normalizada:', normalizedUrl);
+          
+          // Agregar URL de imagen al request
+          const request = { ...requestBase, imagenUrl: normalizedUrl };
+          console.log('🔵 [FRONTEND] 📤 Request CON nueva imagen al backend:', request);
+          
+          return this.http.put(`${this.API_URL}/productos/${productId}`, request);
+        }),
+        catchError(error => {
+          console.error('🔴 [FRONTEND] Error en subida de imagen:', error);
+          
+          // Si falla la subida, actualizar producto sin imagen nueva (mantener la existente)
+          console.log('🟡 [FRONTEND] Fallback: actualizando producto sin nueva imagen personalizada');
+          return this.http.put(`${this.API_URL}/productos/${productId}`, requestBase);
+        })
+      );
+    } else {
+      // No hay imagen nueva, actualizar con datos existentes
+      console.log('🔵 [FRONTEND] No hay imagen nueva, actualizando solo datos del producto');
+      return this.http.put(`${this.API_URL}/productos/${productId}`, requestBase);
     }
   }
 

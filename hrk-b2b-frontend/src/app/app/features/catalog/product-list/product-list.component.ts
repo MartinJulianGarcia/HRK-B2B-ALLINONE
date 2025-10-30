@@ -110,6 +110,10 @@ export class ProductListComponent implements OnInit {
     this.router.navigate(['/add-product']);
   }
 
+  goToEditProduct(productId: number): void {
+    this.router.navigate(['/edit-product', productId]);
+  }
+
   // Métodos de búsqueda
   openSearchModal(): void {
     this.showSearchModal = true;

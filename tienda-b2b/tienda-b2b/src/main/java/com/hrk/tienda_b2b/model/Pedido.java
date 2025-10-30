@@ -32,6 +32,11 @@ public class Pedido {
     // ⭐ NUEVO: Método de pago
     private String metodoPago;
 
+    // ⭐ NUEVO: Tipo de aprobación para devoluciones (null si no es devolución o no está aprobada)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_aprobacion_devolucion")
+    private TipoAprobacionDevolucion tipoAprobacionDevolucion;
+
     // NUEVO: Referencia al Usuario
     @ManyToOne @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;

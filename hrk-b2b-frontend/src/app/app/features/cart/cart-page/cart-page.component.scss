@@ -151,18 +151,19 @@
 }
 
 .logout-btn {
-  background: rgba(255, 255, 255, 0.1);
+  background: none;
+  border: 1px solid white;
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 8px 16px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   transition: all 0.3s;
-}
 
-.logout-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  &:hover {
+    background: white;
+    color: black;
+  }
 }
 
 .history-btn {
@@ -897,5 +898,71 @@
   0% { transform: scale(1); }
   50% { transform: scale(1.02); }
   100% { transform: scale(1); }
+}
+
+// Estilos para selector de usuario (solo para administradores) - Similar al filtro del catálogo
+.user-selector-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: 15px 25px;
+  margin: 10px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 15px;
+}
+
+.user-selector-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.user-selector-label {
+  font-weight: 600;
+  color: #495057;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.user-select {
+  padding: 8px 12px;
+  border: 2px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  min-width: 250px;
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+
+  &:disabled {
+    background: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+  }
+}
+
+.loading-indicator {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.selected-user-info {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: #155724;
+  font-size: 12px;
+  white-space: nowrap;
 }
 

@@ -45,8 +45,11 @@
   }
   
   .over { 
-    border: 2px solid #dc3545; 
-    background: #f8d7da; 
+    border: 2px solid #8e44ad !important; 
+    background: #f4e6ff !important; 
+    color: #8e44ad !important;
+    font-weight: bold;
+    box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.1) !important;
   }
   
   .color { 
@@ -78,5 +81,14 @@
     font-size: 12px;
     color: #6c757d;
     margin-top: 2px;
+  }
+  
+  .stock-warning {
+    color: #8e44ad !important;
+    font-weight: bold;
+    background: #f4e6ff;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px solid #d7b3e8;
   }
 }

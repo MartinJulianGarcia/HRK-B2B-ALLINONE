@@ -148,18 +148,19 @@
 }
 
 .logout-btn {
-  background: #dc3545;
+  background: none;
+  border: 1px solid white;
   color: white;
-  border: none;
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
-  transition: background-color 0.3s;
-}
+  font-size: 14px;
+  transition: all 0.3s;
 
-.logout-btn:hover {
-  background: #c82333;
+  &:hover {
+    background: white;
+    color: black;
+  }
 }
 
 .filters-header {
@@ -280,6 +281,40 @@ h2 {
 .product-info div {
   color: #666;
   font-size: 14px;
+}
+
+.product-actions {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.edit-product-btn {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-block;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.edit-product-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+}
+
+.admin-note {
+  display: block;
+  color: #6c757d;
+  font-size: 12px;
+  margin-top: 8px;
+  font-style: italic;
 }
 
 .btn-cart {

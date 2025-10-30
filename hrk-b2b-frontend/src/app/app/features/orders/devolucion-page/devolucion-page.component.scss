@@ -1,0 +1,416 @@
+// Variables
+$primary-color: #2c3e50;
+$secondary-color: #667eea;
+$accent-color: #f39c12;
+$success-color: #27ae60;
+$danger-color: #e74c3c;
+$light-gray: #f8f9fa;
+$border-color: #dee2e6;
+$text-color: #2c3e50;
+$white: #ffffff;
+
+// Header
+.header {
+  background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 10%) 100%);
+  color: $white;
+  padding: 20px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.cliente-info {
+  margin-top: 8px;
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.logout-btn {
+  background: none;
+  border: 1px solid white;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+
+  &:hover {
+    background: white;
+    color: black;
+  }
+}
+
+// Contenido principal
+.devolucion-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  background: $white;
+  min-height: calc(100vh - 120px);
+}
+
+// Estados
+.loading-state,
+.error-state,
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: $light-gray;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.loading-state p {
+  font-size: 18px;
+  color: $text-color;
+}
+
+.error-state p {
+  color: $danger-color;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  color: $text-color;
+  margin-bottom: 10px;
+}
+
+.empty-state p {
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+// Sección de pedidos
+.pedidos-section {
+  margin-top: 30px;
+}
+
+.section-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.section-header h2 {
+  color: $text-color;
+  margin-bottom: 10px;
+}
+
+.section-header p {
+  color: #6c757d;
+  font-size: 16px;
+}
+
+// Lista de pedidos
+.pedidos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pedido-card {
+  background: $white;
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s;
+
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.pedido-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid $border-color;
+}
+
+.pedido-header h3 {
+  margin: 0;
+  color: $text-color;
+  font-size: 20px;
+}
+
+.pedido-info {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+// Items
+.items-section h4 {
+  color: $text-color;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px;
+  background: $light-gray;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: $secondary-color;
+    background: lighten($secondary-color, 45%);
+  }
+}
+
+.item-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  font-size: 14px;
+  color: $text-color;
+  cursor: pointer;
+  user-select: none;
+}
+
+.item-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-producto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-producto strong {
+  color: $text-color;
+  font-size: 16px;
+}
+
+.item-variante {
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.item-details {
+  display: flex;
+  gap: 15px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.no-items {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 20px;
+}
+
+// Resumen y acciones
+.resumen-section {
+  margin-top: 40px;
+  padding: 30px;
+  background: $light-gray;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resumen-info h3 {
+  margin: 0 0 10px 0;
+  color: $text-color;
+}
+
+.resumen-info p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 15px;
+}
+
+// Botones
+.btn-primary,
+.btn-secondary {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+}
+
+.btn-primary {
+  background: $secondary-color;
+  color: $white;
+
+  &:hover:not(:disabled) {
+    background: darken($secondary-color, 10%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+
+  &:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.6;
+  }
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: $white;
+
+  &:hover {
+    background: darken(#6c757d, 10%);
+    transform: translateY(-2px);
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+
+  .pedido-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .pedido-info {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .item-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .item-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .item-details {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .resumen-section {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+// Estilos para cantidades editables
+.cantidad-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  .cantidad-label {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+  }
+  
+  .cantidad-devolucion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+    
+    label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #495057;
+      white-space: nowrap;
+    }
+    
+    .cantidad-input {
+      width: 80px;
+      padding: 4px 8px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 14px;
+      text-align: center;
+      
+      &:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+      }
+    }
+    
+    .cantidad-max {
+      font-size: 12px;
+      color: #6c757d;
+      font-style: italic;
+    }
+  }
+}
