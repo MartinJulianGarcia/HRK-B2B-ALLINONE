@@ -10,6 +10,9 @@ import com.hrk.tienda_b2b.repository.DetallePedidoRepository;
 import com.hrk.tienda_b2b.repository.MovimientoStockRepository;
 import com.hrk.tienda_b2b.repository.UsuarioRepository;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 @Service
@@ -70,6 +73,44 @@ public class DevolucionServiceImpl implements DevolucionService {
 
         ProductoVariante v = varianteRepo.findById(varianteId)
                 .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada"));
+
+        // ⭐ VALIDACIÓN: Verificar que no se exceda el total entregado
+        Long clienteId = p.getClienteId();
+        int totalEntregado = calcularTotalEntregado(clienteId, varianteId);
+        int totalDevueltoOtrasNotas = calcularTotalDevuelto(clienteId, varianteId, devolucionId); // Excluir la devolución actual
+        
+        // Calcular cantidad ya devuelta en esta devolución (items existentes de la misma variante)
+        // Usar el repositorio para asegurar que se cargan todos los detalles correctamente
+        int cantidadEnEstaDevolucion = 0;
+        List<DetallePedido> detallesDevolucionActual = detalleRepo.findByPedidoId(devolucionId);
+        for (DetallePedido detalleExistente : detallesDevolucionActual) {
+            if (detalleExistente.getVariante() != null && detalleExistente.getVariante().getId().equals(varianteId)) {
+                cantidadEnEstaDevolucion += detalleExistente.getCantidad();
+            }
+        }
+        
+        int cantidadAdevolver = cantidad;
+        int totalDevuelto = totalDevueltoOtrasNotas + cantidadEnEstaDevolucion;
+        int totalQueQuedariaDevuelto = totalDevuelto + cantidadAdevolver;
+        
+        System.out.println("🔵 [DEVOLUCION SERVICE] Validación de stock:");
+        System.out.println("🔵 [DEVOLUCION SERVICE] - Total entregado al cliente: " + totalEntregado);
+        System.out.println("🔵 [DEVOLUCION SERVICE] - Total ya devuelto (otras devoluciones): " + totalDevueltoOtrasNotas);
+        System.out.println("🔵 [DEVOLUCION SERVICE] - Cantidad ya en esta devolución (misma variante): " + cantidadEnEstaDevolucion);
+        System.out.println("🔵 [DEVOLUCION SERVICE] - Cantidad a agregar en esta nota: " + cantidadAdevolver);
+        System.out.println("🔵 [DEVOLUCION SERVICE] - Total que quedaría devuelto: " + totalQueQuedariaDevuelto);
+        
+        if (totalQueQuedariaDevuelto > totalEntregado) {
+            int maxDisponible = Math.max(0, totalEntregado - totalDevuelto);
+            String mensajeError = String.format(
+                "El monto a devolver (%d unidades) excede el total entregado al cliente (%d unidades). " +
+                "Ya se han devuelto %d unidades en otras notas de devolución. " +
+                "Máximo disponible para devolver: %d unidades.",
+                cantidadAdevolver, totalEntregado, totalDevueltoOtrasNotas, maxDisponible
+            );
+            System.out.println("🔴 [DEVOLUCION SERVICE] " + mensajeError);
+            throw new IllegalStateException(mensajeError);
+        }
 
         // El precio ahora siempre está en la variante
         Double precio = v.getPrecio();
@@ -159,5 +200,107 @@ public class DevolucionServiceImpl implements DevolucionService {
     public Pedido findById(Long devolucionId) {
         return pedidoRepo.findByIdAndTipo(devolucionId, TipoDocumento.DEVOLUCION)
                 .orElseThrow(() -> new IllegalArgumentException("Devolución no encontrada"));
+    }
+
+    /**
+     * Calcula el total entregado al cliente para una variante específica
+     * (suma de cantidades en pedidos ENTREGADOS que NO sean devoluciones)
+     */
+    private int calcularTotalEntregado(Long clienteId, Long varianteId) {
+        // Obtener todos los pedidos del cliente que están ENTREGADOS y NO son devoluciones
+        List<Pedido> pedidosCliente = pedidoRepo.findByClienteId(clienteId);
+        
+        System.out.println("🔵 [DEVOLUCION SERVICE] Buscando total entregado - Cliente: " + clienteId + ", Variante: " + varianteId);
+        System.out.println("🔵 [DEVOLUCION SERVICE] Total de pedidos del cliente: " + pedidosCliente.size());
+        
+        int total = 0;
+        for (Pedido pedido : pedidosCliente) {
+            // Solo contar pedidos ENTREGADOS que NO sean devoluciones
+            // (pueden ser VENTA o null, pero NO DEVOLUCION)
+            boolean esPedidoNormal = pedido.getTipo() == null || pedido.getTipo() == TipoDocumento.VENTA;
+            boolean estaEntregado = pedido.getEstado() == EstadoPedido.ENTREGADO;
+            
+            System.out.println("🔵 [DEVOLUCION SERVICE] Analizando pedido ID: " + pedido.getId() + 
+                ", Tipo: " + pedido.getTipo() + ", Estado: " + pedido.getEstado() + 
+                ", Es normal: " + esPedidoNormal + ", Está entregado: " + estaEntregado);
+            
+            if (esPedidoNormal && estaEntregado) {
+                // Buscar directamente los detalles de este pedido y esta variante usando el repositorio
+                // Esto evita problemas de lazy loading
+                List<DetallePedido> detallesPedido = detalleRepo.findByPedidoId(pedido.getId());
+                
+                System.out.println("🔵 [DEVOLUCION SERVICE] Pedido " + pedido.getId() + " tiene " + detallesPedido.size() + " detalles");
+                
+                for (DetallePedido detalle : detallesPedido) {
+                    // Acceder al ID de la variante sin cargar completamente la entidad
+                    Long detalleVarianteId = detalle.getVariante().getId();
+                    
+                    System.out.println("🔵 [DEVOLUCION SERVICE] Detalle ID: " + detalle.getId() + 
+                        ", Variante ID: " + detalleVarianteId + ", Cantidad: " + detalle.getCantidad());
+                    
+                    if (detalleVarianteId.equals(varianteId)) {
+                        total += detalle.getCantidad();
+                        System.out.println("🔵 [DEVOLUCION SERVICE] ✅ Encontrado detalle - Pedido ID: " + pedido.getId() + 
+                            ", Variante ID: " + detalleVarianteId + ", Cantidad: " + detalle.getCantidad());
+                    }
+                }
+            }
+        }
+        
+        System.out.println("🔵 [DEVOLUCION SERVICE] ✅ Total entregado calculado: " + total + " para variante " + varianteId + " y cliente " + clienteId);
+        return total;
+    }
+
+
+    /**
+     * Consulta la disponibilidad de devolución para una variante específica
+     * Retorna: totalEntregado, totalDevuelto, disponibleParaDevolver
+     */
+    @Override
+    public Map<String, Integer> consultarDisponibilidadDevolucion(Long clienteId, Long varianteId) {
+        int totalEntregado = calcularTotalEntregado(clienteId, varianteId);
+        // Para consulta, no excluimos ninguna devolución (queremos el total devuelto real)
+        int totalDevuelto = calcularTotalDevuelto(clienteId, varianteId, null);
+        int disponibleParaDevolver = Math.max(0, totalEntregado - totalDevuelto);
+        
+        Map<String, Integer> resultado = new HashMap<>();
+        resultado.put("totalEntregado", totalEntregado);
+        resultado.put("totalDevuelto", totalDevuelto);
+        resultado.put("disponibleParaDevolver", disponibleParaDevolver);
+        
+        return resultado;
+    }
+    
+    /**
+     * Calcula el total ya devuelto al cliente para una variante específica
+     * (suma de cantidades en todas las devoluciones, sin importar su estado)
+     * Excluye la devolución actual que se está editando (si devolucionActualId no es null)
+     */
+    private int calcularTotalDevuelto(Long clienteId, Long varianteId, Long devolucionActualId) {
+        List<Pedido> pedidosCliente = pedidoRepo.findByClienteId(clienteId);
+        
+        int total = 0;
+        for (Pedido devolucion : pedidosCliente) {
+            // Solo contar devoluciones (excluyendo la devolución actual si se especifica)
+            if (devolucion.getTipo() == TipoDocumento.DEVOLUCION && 
+                (devolucionActualId == null || !devolucion.getId().equals(devolucionActualId))) {
+                // Buscar directamente los detalles usando el repositorio para evitar problemas de lazy loading
+                List<DetallePedido> detallesDevolucion = detalleRepo.findByPedidoId(devolucion.getId());
+                
+                for (DetallePedido detalle : detallesDevolucion) {
+                    Long detalleVarianteId = detalle.getVariante().getId();
+                    
+                    if (detalleVarianteId.equals(varianteId)) {
+                        total += detalle.getCantidad();
+                        System.out.println("🔵 [DEVOLUCION SERVICE] Encontrada devolución - Devolución ID: " + devolucion.getId() + 
+                            ", Variante ID: " + detalleVarianteId + ", Cantidad: " + detalle.getCantidad());
+                    }
+                }
+            }
+        }
+        
+        String excluirInfo = devolucionActualId != null ? " (excluyendo devolución " + devolucionActualId + ")" : " (todas las devoluciones)";
+        System.out.println("🔵 [DEVOLUCION SERVICE] Total devuelto calculado: " + total + " para variante " + varianteId + " y cliente " + clienteId + excluirInfo);
+        return total;
     }
 }

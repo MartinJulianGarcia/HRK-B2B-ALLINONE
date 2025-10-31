@@ -685,6 +685,28 @@ export class OrdersService {
     );
   }
 
+  // Consultar disponibilidad de devolución para una variante
+  consultarDisponibilidadDevolucion(clienteId: number, varianteId: number): Observable<{
+    totalEntregado: number;
+    totalDevuelto: number;
+    disponibleParaDevolver: number;
+  }> {
+    console.log('🔵 [ORDERS SERVICE] Consultando disponibilidad - Cliente:', clienteId, 'Variante:', varianteId);
+    return this.http.get<{
+      totalEntregado: number;
+      totalDevuelto: number;
+      disponibleParaDevolver: number;
+    }>(`${this.API_URL}/devoluciones/disponibilidad?clienteId=${clienteId}&varianteId=${varianteId}`).pipe(
+      tap(disponibilidad => {
+        console.log('🔵 [ORDERS SERVICE] Disponibilidad consultada:', disponibilidad);
+      }),
+      catchError((error: any) => {
+        console.error('🔴 [ORDERS SERVICE] Error al consultar disponibilidad:', error);
+        throw error;
+      })
+    );
+  }
+
   // Crear nota de devolución
   crearNotaDevolucion(clienteId: number, items: any[]): Observable<any> {
     console.log('🔵 [ORDERS SERVICE] Creando nota de devolución para cliente:', clienteId);
@@ -716,6 +738,13 @@ export class OrdersService {
         console.error('🔴 [ORDERS SERVICE] Error status:', error.status);
         console.error('🔴 [ORDERS SERVICE] Error message:', error.message);
         console.error('🔴 [ORDERS SERVICE] Error body:', error.error);
+        
+        // Mejorar mensaje de error si viene del backend
+        if (error.error && typeof error.error === 'string') {
+          throw new Error(error.error);
+        } else if (error.error && error.error.message) {
+          throw new Error(error.error.message);
+        }
         throw error;
       })
     );

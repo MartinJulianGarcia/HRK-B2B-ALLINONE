@@ -80,6 +80,14 @@
                 <div class="item-details">
                   <div class="cantidad-section">
                     <span class="cantidad-label">Cantidad original: {{ item.cantidad }}</span>
+                    <div *ngIf="getDisponibilidadVariante(item.variante?.id)" class="disponibilidad-info">
+                      <span class="disponibilidad-text">
+                        Disponible para devolver: 
+                        <strong>{{ getDisponibilidadVariante(item.variante?.id)?.disponibleParaDevolver }}</strong>
+                        (Entregados: {{ getDisponibilidadVariante(item.variante?.id)?.totalEntregado }}, 
+                        Ya devueltos: {{ getDisponibilidadVariante(item.variante?.id)?.totalDevuelto }})
+                      </span>
+                    </div>
                     <div *ngIf="isItemSeleccionado(pedido.id, item.id)" class="cantidad-devolucion">
                       <label>Cantidad a devolver:</label>
                       <input 
@@ -87,10 +95,15 @@
                         [value]="getCantidadDevolucion(pedido.id, item.id)"
                         (input)="onCantidadInput($event, pedido.id, item.id)"
                         [max]="getCantidadMaxima(pedido.id, item.id)"
-                        min="1"
+                        [min]="getCantidadMaxima(pedido.id, item.id) > 0 ? 1 : 0"
+                        [disabled]="getCantidadMaxima(pedido.id, item.id) <= 0"
                         class="cantidad-input"
+                        [class.disabled]="getCantidadMaxima(pedido.id, item.id) <= 0"
                       >
                       <span class="cantidad-max">(máx: {{ getCantidadMaxima(pedido.id, item.id) }})</span>
+                      <span *ngIf="getCantidadMaxima(pedido.id, item.id) <= 0" class="no-disponible-msg">
+                        No hay unidades disponibles para devolver
+                      </span>
                     </div>
                   </div>
                   <span class="precio">Precio: {{ formatearMonto(item.precioUnitario) }}</span>

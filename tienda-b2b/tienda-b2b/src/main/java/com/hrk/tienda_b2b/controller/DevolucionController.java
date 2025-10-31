@@ -229,4 +229,12 @@ public class DevolucionController {
 
         return ResponseEntity.ok(/* repo o service */ devolucionService.findById(devId)); // <-- reemplazar por find
     }
+
+    @GetMapping("/disponibilidad")
+    public ResponseEntity<Map<String, Integer>> consultarDisponibilidad(
+            @RequestParam Long clienteId,
+            @RequestParam Long varianteId) {
+        Map<String, Integer> disponibilidad = devolucionService.consultarDisponibilidadDevolucion(clienteId, varianteId);
+        return ResponseEntity.ok(disponibilidad);
+    }
 }

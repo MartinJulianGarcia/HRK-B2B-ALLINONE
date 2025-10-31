@@ -101,14 +101,25 @@ public class PedidoServiceImpl implements PedidoService {
     @Override
     @Transactional
     public Pedido confirmar(Long pedidoId) {
+        System.out.println("🔵 [BACKEND] Confirmando pedido (descontando stock): " + pedidoId);
+        
         Pedido p = pedidoRepo.findById(pedidoId)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
 
         if (p.getEstado() != EstadoPedido.DOCUMENTADO && p.getEstado() != EstadoPedido.BORRADOR) {
-            throw new IllegalStateException("El pedido no está listo para confirmar");
+            throw new IllegalStateException("El pedido no está listo para confirmar. Estado actual: " + p.getEstado());
         }
 
-        for (DetallePedido d : p.getDetalles()) {
+        // Forzar carga de detalles usando el repositorio para evitar problemas de lazy loading
+        List<DetallePedido> detalles = detalleRepo.findByPedidoId(pedidoId);
+        
+        if (detalles == null || detalles.isEmpty()) {
+            throw new IllegalStateException("El pedido no tiene detalles");
+        }
+        
+        System.out.println("🔵 [BACKEND] Pedido tiene " + detalles.size() + " detalles");
+
+        for (DetallePedido d : detalles) {
             ProductoVariante v = varianteRepo.findById(d.getVariante().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada"));
 
@@ -130,6 +141,7 @@ public class PedidoServiceImpl implements PedidoService {
         }
 
         p.setEstado(EstadoPedido.CONFIRMADO);
+        System.out.println("✅ [BACKEND] Pedido confirmado - Stock descontado");
         return pedidoRepo.save(p);
     }
 
@@ -146,8 +158,17 @@ public class PedidoServiceImpl implements PedidoService {
             throw new IllegalStateException("Solo se pueden cancelar pedidos CONFIRMADOS. Estado actual: " + p.getEstado() + ". Los pedidos ENTREGADOS no se pueden cancelar.");
         }
 
+        // Forzar carga de detalles usando el repositorio para evitar problemas de lazy loading
+        List<DetallePedido> detalles = detalleRepo.findByPedidoId(pedidoId);
+        
+        if (detalles == null || detalles.isEmpty()) {
+            throw new IllegalStateException("El pedido no tiene detalles");
+        }
+        
+        System.out.println("🔵 [BACKEND] Pedido tiene " + detalles.size() + " detalles a cancelar");
+
         // Restaurar stock de todas las variantes
-        for (DetallePedido d : p.getDetalles()) {
+        for (DetallePedido d : detalles) {
             ProductoVariante v = varianteRepo.findById(d.getVariante().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada"));
 
@@ -200,10 +221,24 @@ public class PedidoServiceImpl implements PedidoService {
     }
 
     @Override
+    @Transactional
     public Pedido obtenerPedidoPorId(Long pedidoId) {
         System.out.println("🔵 [BACKEND] Obteniendo pedido por ID: " + pedidoId);
         
-        return pedidoRepo.findById(pedidoId).orElse(null);
+        Pedido pedido = pedidoRepo.findById(pedidoId).orElse(null);
+        
+        if (pedido != null) {
+            System.out.println("🔵 [BACKEND] Pedido encontrado - ID: " + pedido.getId() + 
+                ", Estado: " + pedido.getEstado() + ", Tipo: " + pedido.getTipo());
+            
+            // Forzar carga de detalles para evitar problemas de lazy loading
+            List<DetallePedido> detalles = detalleRepo.findByPedidoId(pedidoId);
+            System.out.println("🔵 [BACKEND] Pedido tiene " + (detalles != null ? detalles.size() : 0) + " detalles");
+        } else {
+            System.out.println("🔴 [BACKEND] Pedido no encontrado con ID: " + pedidoId);
+        }
+        
+        return pedido;
     }
 
     @Override
