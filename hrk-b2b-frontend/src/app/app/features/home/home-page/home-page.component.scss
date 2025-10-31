@@ -336,6 +336,54 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
+/* Estilos para productos ocultos (solo visible para admin) */
+.product-card.oculto,
+.carousel-item.producto-oculto .product-card {
+  opacity: 0.5;
+  background-color: #f5f5f5;
+  border: 2px solid #cccccc;
+  position: relative;
+}
+
+.product-card.oculto::before,
+.carousel-item.producto-oculto .product-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.1) 0%, rgba(128, 128, 128, 0.2) 100%);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.product-card.oculto .product-image img,
+.carousel-item.producto-oculto .product-card .product-image img {
+  filter: grayscale(70%);
+  opacity: 0.7;
+}
+
+.product-card.oculto .product-info,
+.carousel-item.producto-oculto .product-card .product-info {
+  position: relative;
+  z-index: 2;
+}
+
+.badge-oculto {
+  display: inline-block;
+  background-color: #6c757d;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .carousel-item.selected .product-card {
   border-color: #667eea;
   background: #f8f9ff;

@@ -86,14 +86,18 @@
           [style.flex]="'0 0 calc(100% / ' + itemsPerView + ')'"
           (click)="selectProduct(producto)"
           [class.selected]="selectedProduct?.id === producto.id"
+          [class.producto-oculto]="producto.oculto && authService.isAdmin()"
           [attr.data-product-id]="producto.id"
         >
-          <div class="product-card">
+          <div class="product-card" [class.oculto]="producto.oculto && authService.isAdmin()">
             <div class="product-image">
               <img [src]="producto.imagenUrl" [alt]="producto.nombre" />
             </div>
             <div class="product-info">
-              <h3>{{ producto.nombre }}</h3>
+              <h3>
+                {{ producto.nombre }}
+                <span *ngIf="producto.oculto && authService.isAdmin()" class="badge-oculto">(Oculto)</span>
+              </h3>
               <div class="price-range">
                 Precio: ${{ getMinPrice(producto) }}
               </div>

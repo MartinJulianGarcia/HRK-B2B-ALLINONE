@@ -17,4 +17,6 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
     // Cambiado de String a Categoria (enum)
     List<Producto> findByCategoriaAndTipo(Categoria categoria, TipoProducto tipo);
+    
+    List<Producto> findByOcultoFalse();
 }

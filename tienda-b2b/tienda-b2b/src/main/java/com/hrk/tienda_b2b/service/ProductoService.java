@@ -31,7 +31,15 @@ public class ProductoService {
     private final DetallePedidoRepository detallePedidoRepository;
 
     public List<Producto> obtenerTodos() {
-        return productoRepository.findAll();
+        return obtenerTodos(false);
+    }
+    
+    public List<Producto> obtenerTodos(boolean incluirOcultos) {
+        if (incluirOcultos) {
+            return productoRepository.findAll();
+        } else {
+            return productoRepository.findByOcultoFalse();
+        }
     }
 
     public List<Producto> obtenerPorCategoria(Categoria categoria) {
@@ -79,6 +87,7 @@ public class ProductoService {
             .tipo(request.getTipo())
             .categoria(request.getCategoria())
             .descripcion(request.getDescripcion())
+            .oculto(request.getOculto() != null ? request.getOculto() : false)
             .build();
         
         System.out.println("🔵 [SERVICE] Producto base creado: " + producto.getNombre());
@@ -301,6 +310,14 @@ public class ProductoService {
         
         if (request.getDescripcion() != null) {
             producto.setDescripcion(request.getDescripcion());
+        }
+        
+        // Manejar campo oculto - siempre actualizar, incluso si es false
+        if (request.getOculto() != null) {
+            producto.setOculto(request.getOculto());
+            System.out.println("🔵 [SERVICE] Campo oculto actualizado a: " + request.getOculto());
+        } else {
+            System.out.println("🟡 [SERVICE] Campo oculto no viene en el request, manteniendo valor actual: " + producto.getOculto());
         }
         
         // Manejar imagen

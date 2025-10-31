@@ -16,6 +16,7 @@ public class ProductoResponseDTO {
     private TipoProducto tipo;
     private String imagenUrl;
     private Categoria categoria;
+    private Boolean oculto;
     private List<ProductoVarianteResponseDTO> variantes;
     
     @Data

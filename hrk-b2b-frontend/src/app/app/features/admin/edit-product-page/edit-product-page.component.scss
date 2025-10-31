@@ -561,6 +561,43 @@
 }
 
 // Sección 4: Opciones avanzadas
+.ocultar-producto-section {
+  margin-top: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  
+  .form-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    
+    .form-check-input {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      margin: 0;
+    }
+    
+    .form-check-label {
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      margin: 0;
+    }
+  }
+  
+  .form-text {
+    font-size: 13px;
+    color: #6c757d;
+    margin-top: 5px;
+    margin-left: 30px;
+  }
+}
+
 .advanced-section {
   margin-top: 30px;
   padding-top: 30px;

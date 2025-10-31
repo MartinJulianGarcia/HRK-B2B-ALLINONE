@@ -26,6 +26,7 @@ export interface ProductoDTO {
   tipo: string; 
   imagenUrl: string; 
   categoria: string; // Backend devuelve string del enum
+  oculto?: boolean; // Si está oculto en el catálogo
   variantes: VarianteDTO[];
 }
 
@@ -150,9 +151,10 @@ export class ProductsService {
     );
   }
   
-  list(): Observable<ProductoDTO[]> {
-    console.log('🔵 [FRONTEND] Obteniendo productos desde la API...');
-    return this.http.get<ProductoDTO[]>(`${this.API_URL}/productos`).pipe(
+  list(incluirOcultos: boolean = false): Observable<ProductoDTO[]> {
+    console.log('🔵 [FRONTEND] Obteniendo productos desde la API... (incluirOcultos:', incluirOcultos, ')');
+    const url = `${this.API_URL}/productos${incluirOcultos ? '?incluirOcultos=true' : ''}`;
+    return this.http.get<ProductoDTO[]>(url).pipe(
       tap(products => {
         console.log('🔵 [FRONTEND] Productos recibidos:', products.length, 'productos');
         
@@ -160,7 +162,7 @@ export class ProductsService {
         products.forEach((product, index) => {
           const originalUrl = product.imagenUrl;
           product.imagenUrl = this.normalizeImageUrl(product.imagenUrl);
-          console.log(`🔵 [FRONTEND] Producto ${index + 1}: ${product.nombre}`);
+          console.log(`🔵 [FRONTEND] Producto ${index + 1}: ${product.nombre} (oculto: ${product.oculto})`);
           console.log(`  - URL original: ${originalUrl}`);
           console.log(`  - URL normalizada: ${product.imagenUrl}`);
         });
@@ -170,6 +172,20 @@ export class ProductsService {
         // Fallback a mock data si hay error
         console.log('🟡 [FRONTEND] Usando datos mock como fallback');
     return this.getMockProducts();
+      })
+    );
+  }
+
+  getById(id: number): Observable<ProductoDTO> {
+    console.log('🔵 [FRONTEND] Obteniendo producto por ID:', id);
+    return this.http.get<ProductoDTO>(`${this.API_URL}/productos/${id}`).pipe(
+      tap(product => {
+        product.imagenUrl = this.normalizeImageUrl(product.imagenUrl);
+        console.log('🔵 [FRONTEND] Producto obtenido:', product.nombre, '(oculto:', product.oculto, ')');
+      }),
+      catchError(error => {
+        console.error('🔴 [FRONTEND] Error al obtener producto:', error);
+        throw error;
       })
     );
   }
@@ -321,8 +337,10 @@ export class ProductsService {
       categoria: productData.categoria,
       sku: productData.sku,
       descripcion: productData.descripcion || '',
-      stockPorVariante: productData.stockPorVariante
+      stockPorVariante: productData.stockPorVariante,
+      oculto: productData.oculto !== undefined ? productData.oculto : false // Incluir campo oculto
     };
+    console.log('🔵 [FRONTEND] Request base incluye oculto:', requestBase.oculto);
     
     // Solo incluir colores y talles si se están modificando (opciones avanzadas)
     // NO enviar arrays vacíos - solo enviar si realmente hay valores
@@ -375,9 +393,10 @@ export class ProductsService {
           const normalizedUrl = this.normalizeImageUrl(imageUrl);
           console.log('🔵 [FRONTEND] URL normalizada:', normalizedUrl);
           
-          // Agregar URL de imagen al request
+          // Agregar URL de imagen al request (requestBase ya incluye oculto)
           const request = { ...requestBase, imagenUrl: normalizedUrl };
           console.log('🔵 [FRONTEND] 📤 Request CON nueva imagen al backend:', request);
+          console.log('🔵 [FRONTEND] Request incluye oculto:', request.oculto);
           
           return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, request);
         }),
@@ -392,6 +411,7 @@ export class ProductsService {
     } else {
       // No hay imagen nueva, actualizar con datos existentes
       console.log('🔵 [FRONTEND] No hay imagen nueva, actualizando solo datos del producto');
+      console.log('🔵 [FRONTEND] Request base (sin imagen) incluye oculto:', requestBase.oculto);
       return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase);
     }
   }

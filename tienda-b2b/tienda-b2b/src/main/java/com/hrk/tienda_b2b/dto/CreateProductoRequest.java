@@ -19,6 +19,7 @@ public class CreateProductoRequest {
     private Integer stock;
     private String descripcion;
     private String imagenUrl; // URL de la imagen subida
+    private Boolean oculto; // Si está oculto en el catálogo
     
     // Nuevo: Stock por variante (color-talle -> stock)
     private Map<String, Integer> stockPorVariante;

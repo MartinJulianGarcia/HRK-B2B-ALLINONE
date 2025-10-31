@@ -21,14 +21,20 @@ export class ProfilePageComponent implements OnInit {
   };
   guardando = false;
   error = '';
+  verProductosOcultos = false; // Preferencia para ver productos ocultos (solo admin)
 
   constructor(
-    private authService: AuthService,
+    public authService: AuthService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
     this.loadUserData();
+    // Cargar preferencia de ver productos ocultos desde localStorage (solo admin)
+    if (this.authService.isAdmin()) {
+      const preferenciaGuardada = localStorage.getItem('verProductosOcultos');
+      this.verProductosOcultos = preferenciaGuardada === 'true';
+    }
   }
 
   loadUserData(): void {
@@ -125,6 +131,13 @@ export class ProfilePageComponent implements OnInit {
 
   viewOrderHistory(): void {
     this.router.navigate(['/orders-history']);
+  }
+
+  toggleVerProductosOcultos(event: any): void {
+    this.verProductosOcultos = event.target.checked;
+    // Guardar preferencia en localStorage
+    localStorage.setItem('verProductosOcultos', this.verProductosOcultos.toString());
+    console.log('🔵 [PROFILE] Preferencia de ver productos ocultos actualizada:', this.verProductosOcultos);
   }
 
   cambiarRol(): void {

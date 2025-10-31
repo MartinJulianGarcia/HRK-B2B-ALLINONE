@@ -65,6 +65,17 @@
           <span class="info-label">CUIT:</span>
           <span class="info-value">{{ user?.cuit || 'N/A' }}</span>
         </div>
+        <div class="info-row" *ngIf="authService.isAdmin()">
+          <label class="info-label">Ver productos ocultos en el catálogo:</label>
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              [checked]="verProductosOcultos"
+              (change)="toggleVerProductosOcultos($event)"
+            >
+            <span>Ver productos ocultos</span>
+          </label>
+        </div>
         <div class="info-row">
           <button class="btn btn-secondary" (click)="cambiarRol()">
             Cambiar a {{ user?.tipoUsuario === 'CLIENTE' ? 'ADMIN' : 'CLIENTE' }}

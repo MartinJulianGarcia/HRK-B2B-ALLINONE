@@ -69,11 +69,14 @@
   <div *ngIf="error" class="error">{{ error }}</div>
   
 
-  <div *ngFor="let p of productos" class="card" [attr.data-product-id]="p.id">
+  <div *ngFor="let p of productos" class="card" [class.producto-oculto]="p.oculto && isAdmin()" [attr.data-product-id]="p.id">
     <div class="product-header">
-      <img [src]="p.imagenUrl" alt="{{p.nombre}}" width="100">
+      <img [src]="p.imagenUrl" alt="{{p.nombre}}" width="100" [class.oculto]="p.oculto && isAdmin()">
       <div class="product-info">
-        <h3>{{ p.nombre }}</h3>
+        <h3>
+          {{ p.nombre }}
+          <span *ngIf="p.oculto && isAdmin()" class="badge-oculto">(Oculto)</span>
+        </h3>
         <div>{{ p.descripcion }}</div>
         <p><strong>Categoría:</strong> {{ p.categoria }}</p>
         <p><strong>Tipo:</strong> {{ p.tipo }}</p>

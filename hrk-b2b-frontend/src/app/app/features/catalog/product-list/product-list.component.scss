@@ -269,6 +269,50 @@ h2 {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Estilos para productos ocultos (solo visible para admin) */
+.card.producto-oculto {
+  opacity: 0.6;
+  background-color: #f5f5f5;
+  border: 2px solid #cccccc;
+  position: relative;
+}
+
+.card.producto-oculto::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.1) 0%, rgba(128, 128, 128, 0.2) 100%);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.card.producto-oculto .product-header img.oculto {
+  filter: grayscale(70%);
+  opacity: 0.7;
+}
+
+.card.producto-oculto .product-info {
+  position: relative;
+  z-index: 2;
+}
+
+.badge-oculto {
+  display: inline-block;
+  background-color: #6c757d;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .product-header {
   display: flex;
   gap: 16px;

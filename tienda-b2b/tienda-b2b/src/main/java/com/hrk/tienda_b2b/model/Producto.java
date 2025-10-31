@@ -31,6 +31,10 @@ public class Producto {
     @Column(nullable = false)
     private Categoria categoria;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean oculto = false;
+
     @OneToMany(mappedBy = "producto", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ProductoVariante> variantes = new ArrayList<>();
@@ -42,6 +46,7 @@ public class Producto {
         this.tipo = tipo;
         this.categoria = categoria;
         this.variantes = new ArrayList<>();
+        this.oculto = false; // Inicializar campo oculto
     }
 
     // Método helper para agregar variantes

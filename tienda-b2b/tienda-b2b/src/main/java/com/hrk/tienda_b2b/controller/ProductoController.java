@@ -24,8 +24,9 @@ public class ProductoController {
     private final ProductoService productoService;
 
     @GetMapping
-    public ResponseEntity<List<ProductoResponseDTO>> listarTodos() {
-        List<Producto> productos = productoService.obtenerTodos();
+    public ResponseEntity<List<ProductoResponseDTO>> listarTodos(
+            @RequestParam(value = "incluirOcultos", defaultValue = "false") boolean incluirOcultos) {
+        List<Producto> productos = productoService.obtenerTodos(incluirOcultos);
         List<ProductoResponseDTO> productosDTO = productos.stream()
                 .map(producto -> convertirADTO(producto))
                 .collect(Collectors.toList());
@@ -160,6 +161,7 @@ public class ProductoController {
                     .tipo(producto.getTipo())
                     .imagenUrl(producto.getImagenUrl())
                     .categoria(producto.getCategoria())
+                    .oculto(producto.getOculto() != null ? producto.getOculto() : false)
                     .variantes(variantesDTO)
                     .build();
         } catch (Exception e) {
@@ -191,16 +193,19 @@ public class ProductoController {
             System.out.println("🔵 [CONTROLLER] Tipo: " + request.getTipo());
             System.out.println("🔵 [CONTROLLER] Categoría: " + request.getCategoria());
             System.out.println("🔵 [CONTROLLER] Imagen URL: " + request.getImagenUrl());
+            System.out.println("🔵 [CONTROLLER] Oculto: " + request.getOculto() + " (null: " + (request.getOculto() == null) + ")");
             System.out.println("🔵 [CONTROLLER] Confirmar variantes con pedidos: " + confirmarVariantesConPedidos);
             System.out.println("=================================================");
             
             // Llamar al servicio para actualizar el producto
             Producto actualizado = productoService.actualizarProducto(id, request, confirmarVariantesConPedidos);
             System.out.println("✅ [CONTROLLER] Producto actualizado exitosamente con ID: " + actualizado.getId());
+            System.out.println("✅ [CONTROLLER] Producto oculto después de actualizar: " + actualizado.getOculto());
             System.out.println("=================================================");
             
             // Convertir a DTO para evitar referencia circular
             ProductoResponseDTO responseDTO = convertirADTO(actualizado);
+            System.out.println("✅ [CONTROLLER] DTO oculto: " + responseDTO.getOculto());
             
             return ResponseEntity.ok(responseDTO);
             

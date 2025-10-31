@@ -1,11 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { ProductoDTO, ProductsService } from '../../../core/products.service';
 import { CartService } from '../../../core/cart.service';
 import { AuthService } from '../../../core/auth.service';
 import { Categoria } from '../../../core/categories.enum';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-home-page',
@@ -14,7 +16,7 @@ import { Categoria } from '../../../core/categories.enum';
   templateUrl: './home-page.component.html',
   styleUrls: ['./home-page.component.scss']
 })
-export class HomePageComponent implements OnInit {
+export class HomePageComponent implements OnInit, OnDestroy {
   productos: ProductoDTO[] = [];
   filteredProducts: ProductoDTO[] = [];
   selectedProduct: ProductoDTO | null = null;
@@ -28,21 +30,55 @@ export class HomePageComponent implements OnInit {
   showSearchModal = false; // Controla si mostrar el modal de búsqueda
   searchTerm = ''; // Término de búsqueda
   searchResults: any[] = []; // Resultados de la búsqueda
+  private lastStorageValue: string | null = null;
 
   constructor(
     private productsService: ProductsService,
     private cartService: CartService,
-    private authService: AuthService,
+    public authService: AuthService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
     this.loadProducts();
     this.updateCartCount();
+    this.setupStorageListener();
+  }
+
+  ngOnDestroy(): void {
+    // Cleanup si es necesario
+  }
+
+  private setupStorageListener(): void {
+    // Escuchar eventos de navegación
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: any) => {
+        if (event.url === '/catalog' || event.urlAfterRedirects === '/catalog') {
+          this.loadProducts();
+        }
+      });
+    
+    // Escuchar cambios en storage mediante polling (cada 500ms)
+    setInterval(() => {
+      const currentValue = localStorage.getItem('verProductosOcultos');
+      if (currentValue !== this.lastStorageValue) {
+        this.lastStorageValue = currentValue;
+        if (this.router.url === '/catalog') {
+          console.log('🔵 [HOME] Preferencia cambió, recargando productos...');
+          this.loadProducts();
+        }
+      }
+    }, 500);
   }
 
   loadProducts(): void {
-    this.productsService.list().subscribe(products => {
+    // Verificar si el usuario es admin y si quiere ver productos ocultos
+    const verProductosOcultos = this.authService.isAdmin() && 
+                                 localStorage.getItem('verProductosOcultos') === 'true';
+    this.lastStorageValue = localStorage.getItem('verProductosOcultos');
+    console.log('🔵 [HOME] Cargando productos, incluirOcultos:', verProductosOcultos);
+    this.productsService.list(verProductosOcultos).subscribe(products => {
       this.productos = products;
       this.applyFilter();
     });

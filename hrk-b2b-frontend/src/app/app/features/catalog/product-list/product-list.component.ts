@@ -1,11 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductsService, ProductoDTO } from '../../../core/products.service';
 import { CartService } from '../../../core/cart.service';
 import { AuthService } from '../../../core/auth.service';
 import { ProductGridComponent } from '../product-grid/product-grid.component';
-import { RouterLink, Router } from '@angular/router';
+import { RouterLink, Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-product-list',
@@ -14,7 +15,7 @@ import { RouterLink, Router } from '@angular/router';
   templateUrl: './product-list.component.html',
   styleUrls: ['./product-list.component.scss']
 })
-export class ProductListComponent implements OnInit {
+export class ProductListComponent implements OnInit, OnDestroy {
   productos: ProductoDTO[] = [];
   clienteId?: number;
   carritoId?: number;
@@ -23,6 +24,7 @@ export class ProductListComponent implements OnInit {
   showSearchModal = false; // Controla si mostrar el modal de búsqueda
   searchTerm = ''; // Término de búsqueda
   searchResults: any[] = []; // Resultados de la búsqueda
+  private lastStorageValue: string | null = null;
 
   constructor(
     private products: ProductsService, 
@@ -46,8 +48,27 @@ export class ProductListComponent implements OnInit {
       return;
     }
 
+    this.loadProducts();
+    this.setupStorageListener();
+    
+    this.cart.crear(this.clienteId).subscribe(id => {
+      this.carritoId = id;
+      // El servicio ya maneja localStorage, no necesitamos hacerlo aquí
+    });
+  }
+
+  ngOnDestroy(): void {
+    // Cleanup si es necesario
+  }
+
+  private loadProducts(): void {
     this.loading = true;
-    this.products.list().subscribe({
+    // Verificar si el usuario es admin y si quiere ver productos ocultos
+    const verProductosOcultos = this.authService.isAdmin() && 
+                                 localStorage.getItem('verProductosOcultos') === 'true';
+    this.lastStorageValue = localStorage.getItem('verProductosOcultos');
+    console.log('🔵 [PRODUCT LIST] Cargando productos, incluirOcultos:', verProductosOcultos);
+    this.products.list(verProductosOcultos).subscribe({
       next: p => { 
         this.productos = p; 
         this.loading = false; 
@@ -58,11 +79,29 @@ export class ProductListComponent implements OnInit {
         this.loading = false; 
       }
     });
+  }
+
+  private setupStorageListener(): void {
+    // Escuchar eventos de navegación
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: any) => {
+        if (event.url.includes('/catalog') || event.urlAfterRedirects.includes('/catalog')) {
+          this.loadProducts();
+        }
+      });
     
-    this.cart.crear(this.clienteId).subscribe(id => {
-      this.carritoId = id;
-      // El servicio ya maneja localStorage, no necesitamos hacerlo aquí
-    });
+    // Escuchar cambios en storage mediante polling (cada 500ms)
+    setInterval(() => {
+      const currentValue = localStorage.getItem('verProductosOcultos');
+      if (currentValue !== this.lastStorageValue) {
+        this.lastStorageValue = currentValue;
+        if (this.router.url.includes('/catalog')) {
+          console.log('🔵 [PRODUCT LIST] Preferencia cambió, recargando productos...');
+          this.loadProducts();
+        }
+      }
+    }, 500);
   }
 
   onAdd(varianteId: number, cantidad: number) {

@@ -220,6 +220,25 @@
         </button>
       </div>
 
+      <!-- Sección 3.5: Ocultar producto -->
+      <div class="ocultar-producto-section">
+        <div class="form-check">
+          <input 
+            type="checkbox" 
+            id="oculto" 
+            name="oculto" 
+            [(ngModel)]="productData.oculto"
+            class="form-check-input"
+          >
+          <label for="oculto" class="form-check-label">
+            Ocultar producto en el catálogo
+          </label>
+        </div>
+        <small class="form-text text-muted">
+          Si está marcado, el producto no se mostrará en el catálogo para los clientes
+        </small>
+      </div>
+
       <!-- Sección 4: Opciones Avanzadas (Colapsable) -->
       <div class="advanced-section">
         <button 

@@ -16,6 +16,7 @@ export interface ProductFormData {
   precio: number | null;
   stock: number | null;
   descripcion?: string;
+  oculto?: boolean;
   imagen?: File;
   imagenBase64?: string;
   variantesStock?: VarianteStock[];
@@ -48,7 +49,8 @@ export class EditProductPageComponent implements OnInit {
     talles: [],
     precio: null,
     stock: null,
-    descripcion: ''
+    descripcion: '',
+    oculto: false
   };
 
   tipoProductos: string[] = [
@@ -128,21 +130,17 @@ export class EditProductPageComponent implements OnInit {
 
   loadProduct(): void {
     this.loadingProduct = true;
-    this.productsService.list().subscribe({
-      next: (productos) => {
-        const producto = productos.find(p => p.id === this.productId);
-        if (producto) {
-          this.populateForm(producto);
-        } else {
-          this.error = 'Producto no encontrado';
-          setTimeout(() => this.router.navigate(['/catalog']), 2000);
-        }
+    // Usar getById para obtener el producto directamente por ID (funciona aunque esté oculto)
+    this.productsService.getById(this.productId).subscribe({
+      next: (producto) => {
+        this.populateForm(producto);
         this.loadingProduct = false;
       },
       error: (error) => {
         console.error('Error al cargar producto:', error);
-        this.error = 'Error al cargar el producto';
+        this.error = 'Producto no encontrado';
         this.loadingProduct = false;
+        setTimeout(() => this.router.navigate(['/catalog']), 2000);
       }
     });
   }
@@ -152,6 +150,8 @@ export class EditProductPageComponent implements OnInit {
     this.productData.tipo = producto.tipo;
     this.productData.categoria = producto.categoria as 'TEJIDO' | 'PLANO' | null;
     this.productData.descripcion = producto.descripcion || '';
+    this.productData.oculto = producto.oculto === true; // Asegurar que sea boolean
+    console.log('🔵 [EDIT PRODUCT] Producto cargado - oculto:', producto.oculto, '->', this.productData.oculto);
     this.imagenActualUrl = producto.imagenUrl;
 
     // Obtener colores y talles únicos de las variantes
@@ -242,8 +242,10 @@ export class EditProductPageComponent implements OnInit {
       tipo: this.productData.tipo,
       categoria: this.productData.categoria,
       sku: this.productData.sku,
-      descripcion: this.productData.descripcion || ''
+      descripcion: this.productData.descripcion || '',
+      oculto: this.productData.oculto === true // Asegurar que siempre se envíe como boolean
     };
+    console.log('🔵 [EDIT PRODUCT] Enviando datos con oculto:', datosEnvio.oculto);
     
     // Siempre enviar stock por variante
     if (this.variantesStock.length > 0) {
@@ -275,7 +277,8 @@ export class EditProductPageComponent implements OnInit {
       next: (response) => {
         this.loading = false;
         this.success = 'Producto actualizado exitosamente';
-        console.log('Producto actualizado:', response);
+        console.log('✅ [EDIT PRODUCT] Producto actualizado:', response);
+        console.log('✅ [EDIT PRODUCT] Producto oculto en respuesta:', response.oculto);
         
         setTimeout(() => {
           this.router.navigate(['/catalog']);
