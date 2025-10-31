@@ -190,6 +190,16 @@ $dark-gray: #495057;
   object-fit: cover;
 }
 
+.user-icon-fallback {
+  font-size: 24px;
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  border-radius: 50%;
+}
+
 .logout-btn {
   background: none;
   border: 1px solid white;

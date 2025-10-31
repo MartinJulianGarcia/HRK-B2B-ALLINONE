@@ -142,6 +142,30 @@ export class AuthService {
     );
   }
 
+  actualizarPerfil(usuarioId: number, datos: { nombreRazonSocial?: string; cuit?: string }): Observable<Usuario> {
+    console.log('🔵 [AUTH SERVICE] Actualizando perfil para usuario:', usuarioId, datos);
+    return this.http.put<Usuario>(`${this.API_URL}/usuarios/${usuarioId}`, datos, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      map(usuarioActualizado => {
+        // Actualizar el usuario en el estado actual y localStorage
+        const currentUser = this.getCurrentUser();
+        if (currentUser && currentUser.id === usuarioActualizado.id) {
+          this.currentUserSubject.next(usuarioActualizado);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('currentUser', JSON.stringify(usuarioActualizado));
+          }
+        }
+        return usuarioActualizado;
+      }),
+      catchError((error: any) => {
+        console.error('🔴 [AUTH SERVICE] Error al actualizar perfil:', error);
+        const errorMessage = error.error?.error || error.error?.message || 'Error al actualizar el perfil';
+        return throwError(() => new Error(errorMessage));
+      })
+    );
+  }
+
   logout(): void {
     this.currentUserSubject.next(null);
     this.selectedClientSubject.next(null);

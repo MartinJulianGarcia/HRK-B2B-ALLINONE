@@ -27,7 +27,9 @@
       📋
     </button>
     <button class="icon-btn user-icon" title="Perfil de Usuario" (click)="goToProfile()">
-      <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img">
+      <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+      <span class="user-icon-fallback" style="display:none;">👤</span>
     </button>
     <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
       Cerrar Sesión

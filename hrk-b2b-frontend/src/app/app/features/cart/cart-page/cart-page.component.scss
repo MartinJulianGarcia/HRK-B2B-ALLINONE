@@ -207,6 +207,15 @@
   display: block;
 }
 
+.user-icon-fallback {
+  font-size: 24px;
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+}
+
 .cart-content {
   max-width: 800px;
   margin: 0 auto;

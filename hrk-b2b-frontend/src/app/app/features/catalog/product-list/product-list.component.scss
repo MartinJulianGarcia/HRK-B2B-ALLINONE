@@ -147,6 +147,15 @@
   border-radius: 50%;
 }
 
+.user-icon-fallback {
+  font-size: 24px;
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+}
+
 .logout-btn {
   background: none;
   border: 1px solid white;

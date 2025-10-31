@@ -1,18 +1,26 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth.service';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './profile-page.component.html',
   styleUrls: ['./profile-page.component.scss']
 })
 export class ProfilePageComponent implements OnInit {
   user: any = null;
   memberSince: string = '';
+  editando = false;
+  editForm = {
+    nombreRazonSocial: '',
+    cuit: ''
+  };
+  guardando = false;
+  error = '';
 
   constructor(
     private authService: AuthService,
@@ -54,8 +62,60 @@ export class ProfilePageComponent implements OnInit {
   }
 
   editProfile(): void {
-    // Por ahora solo mostramos un alert, más adelante se puede crear una página de edición
-    alert('Función de editar perfil próximamente disponible');
+    if (!this.user) return;
+    
+    this.editando = true;
+    this.editForm = {
+      nombreRazonSocial: this.user.nombreRazonSocial || '',
+      cuit: this.user.cuit || ''
+    };
+    this.error = '';
+  }
+
+  cancelarEdicion(): void {
+    this.editando = false;
+    this.editForm = {
+      nombreRazonSocial: '',
+      cuit: ''
+    };
+    this.error = '';
+  }
+
+  guardarCambios(): void {
+    if (!this.user) return;
+
+    // Validaciones
+    if (!this.editForm.nombreRazonSocial || this.editForm.nombreRazonSocial.trim().length === 0) {
+      this.error = 'El nombre es requerido';
+      return;
+    }
+
+    if (!this.editForm.cuit || this.editForm.cuit.trim().length === 0) {
+      this.error = 'El CUIT es requerido';
+      return;
+    }
+
+    this.guardando = true;
+    this.error = '';
+
+    const datosActualizacion: { nombreRazonSocial: string; cuit: string } = {
+      nombreRazonSocial: this.editForm.nombreRazonSocial.trim(),
+      cuit: this.editForm.cuit.trim()
+    };
+
+    this.authService.actualizarPerfil(this.user.id, datosActualizacion).subscribe({
+      next: (usuarioActualizado) => {
+        this.user = usuarioActualizado;
+        this.editando = false;
+        this.guardando = false;
+        alert('Perfil actualizado exitosamente');
+      },
+      error: (error) => {
+        console.error('Error al actualizar perfil:', error);
+        this.error = error.message || 'Error al actualizar el perfil';
+        this.guardando = false;
+      }
+    });
   }
 
   logout(): void {
