@@ -7,6 +7,9 @@ public enum TipoMovimiento {
     REVERSION_POR_ANULACION,
 
     DEVOLUCION_ENTRADA,        // suma stock por devolución
-    DESPERFECTO_SCRAP          // baja definitiva si no es apto venta
+    DESPERFECTO_SCRAP,         // baja definitiva si no es apto venta
+    
+    AJUSTE_INVENTARIO_POSITIVO,  // ajuste manual: entrada de stock
+    AJUSTE_INVENTARIO_NEGATIVO   // ajuste manual: salida de stock
 
      }

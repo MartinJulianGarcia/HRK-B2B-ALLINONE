@@ -1,6 +1,4 @@
 package com.hrk.tienda_b2b.model;
-import java.util.List;
-import java.util.ArrayList;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -21,6 +19,7 @@ public class MovimientoStock {
     private DetallePedido detalle; // opcional
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 50)  // Aumentar el tamaño para permitir valores largos como AJUSTE_INVENTARIO_POSITIVO (25 caracteres)
     private TipoMovimiento tipo;
 
     private Integer cantidad;

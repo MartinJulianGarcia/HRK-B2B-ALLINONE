@@ -1,16 +1,23 @@
 package com.hrk.tienda_b2b.service;
 
 import com.hrk.tienda_b2b.dto.CreateProductoRequest;
+import com.hrk.tienda_b2b.dto.VerificacionActualizacionProductoResponse;
 import com.hrk.tienda_b2b.model.Categoria;
+import com.hrk.tienda_b2b.model.MovimientoStock;
 import com.hrk.tienda_b2b.model.Producto;
 import com.hrk.tienda_b2b.model.ProductoVariante;
+import com.hrk.tienda_b2b.model.TipoMovimiento;
 import com.hrk.tienda_b2b.model.TipoProducto;
+import com.hrk.tienda_b2b.repository.DetallePedidoRepository;
+import com.hrk.tienda_b2b.repository.MovimientoStockRepository;
 import com.hrk.tienda_b2b.repository.ProductoRepository;
 import com.hrk.tienda_b2b.repository.ProductoVarianteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +27,8 @@ public class ProductoService {
 
     private final ProductoRepository productoRepository;
     private final ProductoVarianteRepository productoVarianteRepository;
+    private final MovimientoStockRepository movimientoStockRepository;
+    private final DetallePedidoRepository detallePedidoRepository;
 
     public List<Producto> obtenerTodos() {
         return productoRepository.findAll();
@@ -198,22 +207,84 @@ public class ProductoService {
         return String.format("%s-%s-%s", skuBase, colorCode, talle.toUpperCase().replaceAll("/", ""));
     }
 
+    /**
+     * Verifica qué variantes de un producto tienen pedidos asociados
+     * @param productoId ID del producto
+     * @return Lista de IDs de variantes que tienen pedidos
+     */
+    private List<Long> verificarVariantesConPedidos(Long productoId) {
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado con ID: " + productoId));
+        
+        List<Long> variantesConPedidos = new ArrayList<>();
+        
+        for (ProductoVariante variante : producto.getVariantes()) {
+            if (detallePedidoRepository.existsByVarianteId(variante.getId())) {
+                variantesConPedidos.add(variante.getId());
+                System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " (ID: " + variante.getId() + ") tiene pedidos asociados");
+            }
+        }
+        
+        return variantesConPedidos;
+    }
+
+    /**
+     * Verifica y devuelve información detallada sobre variantes con pedidos
+     * @param productoId ID del producto
+     * @return Información sobre variantes con pedidos asociados
+     */
+    public VerificacionActualizacionProductoResponse verificarVariantesConPedidosDetallado(Long productoId) {
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado con ID: " + productoId));
+        
+        List<VerificacionActualizacionProductoResponse.VarianteConPedidosInfo> variantesInfo = new ArrayList<>();
+        
+        for (ProductoVariante variante : producto.getVariantes()) {
+            long cantidadPedidos = detallePedidoRepository.countByVarianteId(variante.getId());
+            if (cantidadPedidos > 0) {
+                VerificacionActualizacionProductoResponse.VarianteConPedidosInfo info = 
+                    VerificacionActualizacionProductoResponse.VarianteConPedidosInfo.builder()
+                        .varianteId(variante.getId())
+                        .sku(variante.getSku())
+                        .color(variante.getColor())
+                        .talle(variante.getTalle())
+                        .stockActual(variante.getStockDisponible())
+                        .cantidadPedidos(cantidadPedidos)
+                        .build();
+                variantesInfo.add(info);
+                System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " tiene " + cantidadPedidos + " pedidos asociados");
+            }
+        }
+        
+        return VerificacionActualizacionProductoResponse.builder()
+                .tieneVariantesConPedidos(!variantesInfo.isEmpty())
+                .cantidadVariantesConPedidos(variantesInfo.size())
+                .variantesConPedidos(variantesInfo)
+                .build();
+    }
+
     @Transactional
-    public Producto actualizarProducto(Long id, CreateProductoRequest request) {
+    public Producto actualizarProducto(Long id, CreateProductoRequest request, boolean confirmarVariantesConPedidos) {
         System.out.println("🔵 [SERVICE] Actualizando producto con ID: " + id);
         System.out.println("🔵 [SERVICE] Request recibido: " + request);
         System.out.println("🔵 [SERVICE] SKU recibido: " + request.getSku());
-        System.out.println("🔵 [SERVICE] Colores: " + request.getColores());
-        System.out.println("🔵 [SERVICE] Talles: " + request.getTalles());
+        System.out.println("🔵 [SERVICE] Colores: " + request.getColores() + " (null: " + (request.getColores() == null) + ", empty: " + (request.getColores() != null && request.getColores().isEmpty()) + ")");
+        System.out.println("🔵 [SERVICE] Talles: " + request.getTalles() + " (null: " + (request.getTalles() == null) + ", empty: " + (request.getTalles() != null && request.getTalles().isEmpty()) + ")");
         System.out.println("🔵 [SERVICE] Precio: " + request.getPrecio());
-        System.out.println("🔵 [SERVICE] Stock por variante: " + request.getStockPorVariante());
+        System.out.println("🔵 [SERVICE] Stock por variante: " + request.getStockPorVariante() + " (null: " + (request.getStockPorVariante() == null) + ", empty: " + (request.getStockPorVariante() != null && request.getStockPorVariante().isEmpty()) + ")");
         
         // Buscar el producto existente
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado con ID: " + id));
         
         System.out.println("🔵 [SERVICE] Producto encontrado: " + producto.getNombre());
-        System.out.println("🔵 [SERVICE] Variantes existentes: " + producto.getVariantes().size());
+        
+        // Forzar la carga de las variantes para evitar problemas de lazy loading
+        if (producto.getVariantes() != null) {
+            producto.getVariantes().size(); // Esto fuerza la carga en JPA
+        }
+        
+        System.out.println("🔵 [SERVICE] Variantes existentes: " + (producto.getVariantes() != null ? producto.getVariantes().size() : 0));
         
         // Validaciones básicas
         if (request.getNombre() != null && !request.getNombre().trim().isEmpty()) {
@@ -237,10 +308,14 @@ public class ProductoService {
             producto.setImagenUrl(request.getImagenUrl());
         }
         
-        // Actualizar variantes si se proporcionan
-        if (request.getColores() != null && !request.getColores().isEmpty() &&
-            request.getTalles() != null && !request.getTalles().isEmpty() &&
-            request.getPrecio() != null && request.getPrecio() > 0) {
+        // Actualizar variantes si se proporcionan (y no estamos solo actualizando stock)
+        boolean tieneColoresYTalles = request.getColores() != null && !request.getColores().isEmpty() &&
+                                      request.getTalles() != null && !request.getTalles().isEmpty() &&
+                                      request.getPrecio() != null && request.getPrecio() > 0;
+        
+        System.out.println("🔵 [SERVICE] ¿Debe actualizar variantes (colores/talles/precio)? " + tieneColoresYTalles);
+        
+        if (tieneColoresYTalles) {
             
             // Obtener SKU base antes de eliminar variantes (necesario si no viene en el request)
             String skuBase = request.getSku();
@@ -259,13 +334,62 @@ public class ProductoService {
                 }
             }
             
-            // Eliminar variantes existentes usando query directa por producto_id
-            // Esto es más eficiente y evita problemas de caché/transacción
-            System.out.println("🔵 [SERVICE] Eliminando variantes existentes del producto ID: " + producto.getId());
-            productoVarianteRepository.deleteByProductoId(producto.getId());
-            productoVarianteRepository.flush(); // Forzar commit de la eliminación
-            producto.getVariantes().clear(); // Limpiar la lista en memoria
-            System.out.println("🔵 [SERVICE] Variantes eliminadas, ahora crear nuevas");
+            // ⭐ NUEVA LÓGICA: No eliminar variantes con pedidos, solo poner stock en 0
+            // Verificar qué variantes tienen pedidos antes de modificar
+            List<Long> variantesConPedidos = verificarVariantesConPedidos(id);
+            
+            if (!variantesConPedidos.isEmpty() && !confirmarVariantesConPedidos) {
+                throw new IllegalStateException("El producto tiene variantes con pedidos asociados. Se requiere confirmación para continuar.");
+            }
+            
+            System.out.println("🔵 [SERVICE] Procesando variantes existentes...");
+            
+            // Separar variantes: las que tienen pedidos vs las que no
+            List<ProductoVariante> variantesAMantener = new ArrayList<>();
+            List<ProductoVariante> variantesAEliminar = new ArrayList<>();
+            
+            for (ProductoVariante variante : producto.getVariantes()) {
+                if (detallePedidoRepository.existsByVarianteId(variante.getId())) {
+                    // Variantes con pedidos: poner stock en 0, no eliminar
+                    Integer stockAnterior = variante.getStockDisponible();
+                    
+                    if (stockAnterior > 0) {
+                        // Registrar movimiento de ajuste negativo si había stock
+                        MovimientoStock movimiento = MovimientoStock.builder()
+                                .variante(variante)
+                                .tipo(TipoMovimiento.AJUSTE_INVENTARIO_NEGATIVO)
+                                .cantidad(stockAnterior)
+                                .fecha(LocalDateTime.now())
+                                .build();
+                        movimientoStockRepository.save(movimiento);
+                        System.out.println("🔵 [SERVICE] Movimiento registrado: stock de " + variante.getSku() + " será puesto en 0");
+                    }
+                    
+                    variante.setStockDisponible(0);
+                    variantesAMantener.add(variante);
+                    System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " mantenida (tiene pedidos), stock puesto en 0");
+                } else {
+                    // Variante sin pedidos: se puede eliminar
+                    variantesAEliminar.add(variante);
+                    System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " será eliminada (no tiene pedidos)");
+                }
+            }
+            
+            // Eliminar solo las variantes que no tienen pedidos
+            if (!variantesAEliminar.isEmpty()) {
+                for (ProductoVariante variante : variantesAEliminar) {
+                    productoVarianteRepository.delete(variante);
+                }
+                productoVarianteRepository.flush();
+                System.out.println("🔵 [SERVICE] " + variantesAEliminar.size() + " variantes eliminadas (sin pedidos)");
+            }
+            
+            // Limpiar la lista en memoria y agregar las que mantenemos
+            producto.getVariantes().clear();
+            producto.getVariantes().addAll(variantesAMantener);
+            
+            System.out.println("🔵 [SERVICE] " + variantesAMantener.size() + " variantes mantenidas (con pedidos, stock=0)");
+            System.out.println("🔵 [SERVICE] Ahora crear nuevas variantes");
             
             // Crear nuevas variantes
             boolean usarStockIndividual = request.getStockPorVariante() != null && !request.getStockPorVariante().isEmpty();
@@ -326,19 +450,99 @@ public class ProductoService {
                 }
             }
         } else if (request.getStockPorVariante() != null && !request.getStockPorVariante().isEmpty()) {
-            // Actualizar solo el stock de variantes existentes
+            // Actualizar solo el stock de variantes existentes y registrar movimientos
+            System.out.println("🔵 [SERVICE] Actualizando stock de variantes existentes y registrando movimientos");
+            System.out.println("🔵 [SERVICE] Stock por variante recibido: " + request.getStockPorVariante());
+            System.out.println("🔵 [SERVICE] Total de variantes existentes: " + producto.getVariantes().size());
+            
+            if (producto.getVariantes() == null || producto.getVariantes().isEmpty()) {
+                throw new IllegalStateException("El producto no tiene variantes para actualizar stock");
+            }
+            
             for (ProductoVariante variante : producto.getVariantes()) {
+                if (variante.getColor() == null || variante.getTalle() == null) {
+                    System.out.println("⚠️ [SERVICE] Variante " + variante.getSku() + " tiene color o talle null, saltando...");
+                    continue;
+                }
+                
                 String claveVariante = variante.getColor() + "-" + variante.getTalle();
+                System.out.println("🔵 [SERVICE] Verificando variante: " + claveVariante + " (SKU: " + variante.getSku() + ")");
+                
                 if (request.getStockPorVariante().containsKey(claveVariante)) {
-                    variante.setStockDisponible(request.getStockPorVariante().get(claveVariante));
+                    Integer stockAnterior = variante.getStockDisponible();
+                    Integer stockNuevo = request.getStockPorVariante().get(claveVariante);
+                    Integer diferencia = stockNuevo - stockAnterior;
+                    
+                    System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + ": Stock anterior=" + stockAnterior + ", Stock nuevo=" + stockNuevo + ", Diferencia=" + diferencia);
+                    
+                    // Solo registrar movimiento si hay diferencia
+                    if (diferencia != 0) {
+                        TipoMovimiento tipoMovimiento;
+                        Integer cantidadMovimiento;
+                        
+                        if (diferencia > 0) {
+                            // Entrada de stock
+                            tipoMovimiento = TipoMovimiento.AJUSTE_INVENTARIO_POSITIVO;
+                            cantidadMovimiento = diferencia;
+                            System.out.println("🔵 [SERVICE] Registrando entrada de stock: +" + cantidadMovimiento);
+                        } else {
+                            // Salida de stock
+                            tipoMovimiento = TipoMovimiento.AJUSTE_INVENTARIO_NEGATIVO;
+                            cantidadMovimiento = Math.abs(diferencia);
+                            System.out.println("🔵 [SERVICE] Registrando salida de stock: -" + cantidadMovimiento);
+                        }
+                        
+                        // Crear y guardar el movimiento de stock
+                        MovimientoStock movimiento = MovimientoStock.builder()
+                                .variante(variante)
+                                .tipo(tipoMovimiento)
+                                .cantidad(cantidadMovimiento)
+                                .fecha(LocalDateTime.now())
+                                .build();
+                        
+                        movimientoStockRepository.save(movimiento);
+                        System.out.println("✅ [SERVICE] Movimiento registrado: " + tipoMovimiento + " - " + cantidadMovimiento + " unidades");
+                    }
+                    
+                    // Actualizar el stock de la variante (se guardará al guardar el producto por cascade)
+                    variante.setStockDisponible(stockNuevo);
+                    System.out.println("✅ [SERVICE] Stock de variante actualizado: " + variante.getSku() + " -> " + stockNuevo);
+                } else {
+                    System.out.println("⚠️ [SERVICE] Variante " + claveVariante + " no encontrada en stockPorVariante del request");
+                }
+            }
+            
+            // Actualizar precio de todas las variantes si viene en el request
+            if (request.getPrecio() != null && request.getPrecio() > 0) {
+                System.out.println("🔵 [SERVICE] Actualizando precio de todas las variantes a: " + request.getPrecio());
+                for (ProductoVariante variante : producto.getVariantes()) {
+                    variante.setPrecio(request.getPrecio());
+                    System.out.println("✅ [SERVICE] Precio de variante " + variante.getSku() + " actualizado: " + request.getPrecio());
+                }
+            }
+        } else if (request.getPrecio() != null && request.getPrecio() > 0) {
+            // Solo actualizar precio si no se están modificando variantes ni stock
+            System.out.println("🔵 [SERVICE] Actualizando solo precio de todas las variantes a: " + request.getPrecio());
+            
+            if (producto.getVariantes() == null || producto.getVariantes().isEmpty()) {
+                System.out.println("⚠️ [SERVICE] El producto no tiene variantes para actualizar precio");
+            } else {
+                for (ProductoVariante variante : producto.getVariantes()) {
+                    variante.setPrecio(request.getPrecio());
+                    System.out.println("✅ [SERVICE] Precio de variante " + variante.getSku() + " actualizado: " + request.getPrecio());
                 }
             }
         }
         
-        // Guardar el producto actualizado
-        producto = productoRepository.save(producto);
-        
-        System.out.println("✅ [SERVICE] Producto actualizado exitosamente con ID: " + producto.getId());
+        // Guardar el producto actualizado (las variantes se guardarán automáticamente por cascade)
+        try {
+            producto = productoRepository.save(producto);
+            System.out.println("✅ [SERVICE] Producto actualizado exitosamente con ID: " + producto.getId());
+        } catch (Exception e) {
+            System.out.println("🔴 [SERVICE] Error al guardar producto: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error al guardar producto: " + e.getMessage(), e);
+        }
         
         return producto;
     }

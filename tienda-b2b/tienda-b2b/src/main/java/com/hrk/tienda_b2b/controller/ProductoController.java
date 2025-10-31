@@ -2,6 +2,7 @@ package com.hrk.tienda_b2b.controller;
 
 import com.hrk.tienda_b2b.dto.CreateProductoRequest;
 import com.hrk.tienda_b2b.dto.ProductoResponseDTO;
+import com.hrk.tienda_b2b.dto.VerificacionActualizacionProductoResponse;
 import com.hrk.tienda_b2b.model.Producto;
 import com.hrk.tienda_b2b.model.ProductoVariante;
 import com.hrk.tienda_b2b.service.ProductoService;
@@ -135,30 +136,54 @@ public class ProductoController {
     }
     
     private ProductoResponseDTO convertirADTO(Producto producto) {
-        List<ProductoResponseDTO.ProductoVarianteResponseDTO> variantesDTO = producto.getVariantes().stream()
-                .map(variante -> ProductoResponseDTO.ProductoVarianteResponseDTO.builder()
-                        .id(variante.getId())
-                        .sku(variante.getSku())
-                        .color(variante.getColor())
-                        .talle(variante.getTalle())
-                        .precio(variante.getPrecio())
-                        .stockDisponible(variante.getStockDisponible())
-                        .build())
-                .collect(Collectors.toList());
-        
-        return ProductoResponseDTO.builder()
-                .id(producto.getId())
-                .nombre(producto.getNombre())
-                .descripcion(producto.getDescripcion())
-                .tipo(producto.getTipo())
-                .imagenUrl(producto.getImagenUrl())
-                .categoria(producto.getCategoria())
-                .variantes(variantesDTO)
-                .build();
+        try {
+            // Asegurarse de que las variantes estén cargadas
+            if (producto.getVariantes() != null) {
+                producto.getVariantes().size(); // Esto fuerza la carga en JPA si está en lazy loading
+            }
+            
+            List<ProductoResponseDTO.ProductoVarianteResponseDTO> variantesDTO = producto.getVariantes().stream()
+                    .map(variante -> ProductoResponseDTO.ProductoVarianteResponseDTO.builder()
+                            .id(variante.getId())
+                            .sku(variante.getSku())
+                            .color(variante.getColor())
+                            .talle(variante.getTalle())
+                            .precio(variante.getPrecio())
+                            .stockDisponible(variante.getStockDisponible())
+                            .build())
+                    .collect(Collectors.toList());
+            
+            return ProductoResponseDTO.builder()
+                    .id(producto.getId())
+                    .nombre(producto.getNombre())
+                    .descripcion(producto.getDescripcion())
+                    .tipo(producto.getTipo())
+                    .imagenUrl(producto.getImagenUrl())
+                    .categoria(producto.getCategoria())
+                    .variantes(variantesDTO)
+                    .build();
+        } catch (Exception e) {
+            System.err.println("🔴 [CONTROLLER] Error al convertir Producto a DTO: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error al convertir producto a DTO: " + e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/{id}/verificar-pedidos")
+    public ResponseEntity<VerificacionActualizacionProductoResponse> verificarVariantesConPedidos(@PathVariable Long id) {
+        try {
+            VerificacionActualizacionProductoResponse verificacion = productoService.verificarVariantesConPedidosDetallado(id);
+            return ResponseEntity.ok(verificacion);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> actualizarProducto(@PathVariable Long id, @RequestBody CreateProductoRequest request) {
+    public ResponseEntity<?> actualizarProducto(
+            @PathVariable Long id, 
+            @RequestBody CreateProductoRequest request,
+            @RequestParam(value = "confirmarVariantesConPedidos", defaultValue = "false") boolean confirmarVariantesConPedidos) {
         try {
             System.out.println("=================================================");
             System.out.println("🔵 [CONTROLLER] Request de actualización recibido para ID: " + id);
@@ -166,10 +191,11 @@ public class ProductoController {
             System.out.println("🔵 [CONTROLLER] Tipo: " + request.getTipo());
             System.out.println("🔵 [CONTROLLER] Categoría: " + request.getCategoria());
             System.out.println("🔵 [CONTROLLER] Imagen URL: " + request.getImagenUrl());
+            System.out.println("🔵 [CONTROLLER] Confirmar variantes con pedidos: " + confirmarVariantesConPedidos);
             System.out.println("=================================================");
             
             // Llamar al servicio para actualizar el producto
-            Producto actualizado = productoService.actualizarProducto(id, request);
+            Producto actualizado = productoService.actualizarProducto(id, request, confirmarVariantesConPedidos);
             System.out.println("✅ [CONTROLLER] Producto actualizado exitosamente con ID: " + actualizado.getId());
             System.out.println("=================================================");
             
@@ -178,6 +204,18 @@ public class ProductoController {
             
             return ResponseEntity.ok(responseDTO);
             
+        } catch (IllegalStateException e) {
+            // Si hay variantes con pedidos y no se confirmó, devolver información detallada
+            System.out.println("🟡 [CONTROLLER] Variantes con pedidos detectadas, solicitando confirmación");
+            VerificacionActualizacionProductoResponse verificacion = productoService.verificarVariantesConPedidosDetallado(id);
+            
+            Map<String, Object> respuesta = new HashMap<>();
+            respuesta.put("requiereConfirmacion", true);
+            respuesta.put("mensaje", "El producto tiene variantes con pedidos asociados. Se requiere confirmación para continuar.");
+            respuesta.put("verificacion", verificacion);
+            
+            return ResponseEntity.status(409).body(respuesta); // 409 Conflict
+            
         } catch (IllegalArgumentException e) {
             System.out.println("🔴 [CONTROLLER] Error de validación: " + e.getMessage());
             e.printStackTrace();
@@ -185,8 +223,18 @@ public class ProductoController {
             
         } catch (Exception e) {
             System.out.println("🔴 [CONTROLLER] Error inesperado: " + e.getMessage());
+            System.out.println("🔴 [CONTROLLER] Tipo de excepción: " + e.getClass().getName());
+            if (e.getCause() != null) {
+                System.out.println("🔴 [CONTROLLER] Causa: " + e.getCause().getMessage());
+                e.getCause().printStackTrace();
+            }
             e.printStackTrace();
-            return ResponseEntity.status(500).body(crearRespuestaError("Error interno del servidor: " + e.getMessage()));
+            // Incluir más detalles del error en la respuesta
+            String mensajeError = "Error interno del servidor: " + e.getMessage();
+            if (e.getCause() != null) {
+                mensajeError += " (Causa: " + e.getCause().getMessage() + ")";
+            }
+            return ResponseEntity.status(500).body(crearRespuestaError(mensajeError));
         }
     }
 

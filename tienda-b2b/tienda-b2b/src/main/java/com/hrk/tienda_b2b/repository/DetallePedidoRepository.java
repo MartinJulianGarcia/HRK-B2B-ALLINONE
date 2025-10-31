@@ -2,7 +2,16 @@ package com.hrk.tienda_b2b.repository;
 import com.hrk.tienda_b2b.model.DetallePedido;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 
-public interface DetallePedidoRepository extends JpaRepository<DetallePedido, Long> { }
+public interface DetallePedidoRepository extends JpaRepository<DetallePedido, Long> {
+    // Verificar si una variante tiene pedidos asociados
+    boolean existsByVarianteId(Long varianteId);
+    
+    // Contar cantidad de pedidos para una variante
+    @Query("SELECT COUNT(d) FROM DetallePedido d WHERE d.variante.id = :varianteId")
+    long countByVarianteId(@Param("varianteId") Long varianteId);
+}

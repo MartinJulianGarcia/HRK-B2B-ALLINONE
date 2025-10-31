@@ -282,9 +282,10 @@ export class ProductsService {
     }
   }
 
-  updateProduct(productId: number, productData: any): Observable<any> {
+  updateProduct(productId: number, productData: any, confirmarVariantesConPedidos: boolean = false): Observable<any> {
     console.log('🔵 [FRONTEND] Actualizando producto ID:', productId);
     console.log('🔵 [FRONTEND] Datos a actualizar:', productData);
+    console.log('🔵 [FRONTEND] Confirmar variantes con pedidos:', confirmarVariantesConPedidos);
     
     // Validar que los campos requeridos no sean null o undefined
     if (!productData.tipo || !productData.categoria) {
@@ -301,13 +302,34 @@ export class ProductsService {
       tipo: productData.tipo,
       categoria: productData.categoria,
       sku: productData.sku,
-      colores: productData.colores || [],
-      talles: productData.talles || [],
-      precio: productData.precio,
-      stock: productData.stock,
       descripcion: productData.descripcion || '',
       stockPorVariante: productData.stockPorVariante
     };
+    
+    // Solo incluir colores y talles si se están modificando (opciones avanzadas)
+    // NO enviar arrays vacíos - solo enviar si realmente hay valores
+    if (productData.colores && Array.isArray(productData.colores) && productData.colores.length > 0) {
+      requestBase.colores = productData.colores;
+    } else {
+      // No enviar colores si está vacío o undefined
+      console.log('🔵 [FRONTEND] No se envían colores (vacío o no modificado)');
+    }
+    
+    if (productData.talles && Array.isArray(productData.talles) && productData.talles.length > 0) {
+      requestBase.talles = productData.talles;
+    } else {
+      // No enviar talles si está vacío o undefined
+      console.log('🔵 [FRONTEND] No se envían talles (vacío o no modificado)');
+    }
+    
+    // Solo incluir precio y stock si están definidos
+    if (productData.precio != null && productData.precio > 0) {
+      requestBase.precio = productData.precio;
+    }
+    
+    if (productData.stock != null && productData.stock >= 0) {
+      requestBase.stock = productData.stock;
+    }
 
     // Verificar si hay imagen nueva
     console.log('🔵 [FRONTEND] Verificando imagen:', {
@@ -328,7 +350,7 @@ export class ProductsService {
           if (typeof imageUrl === 'string' && (imageUrl.includes('<!DOCTYPE html>') || imageUrl.includes('<!DOCTYPE'))) {
             console.error('🔴 [FRONTEND] ❌ El backend devolvió HTML en lugar del filename.');
             console.log('🟡 [FRONTEND] Actualizando producto sin nueva imagen personalizada...');
-            return this.http.put(`${this.API_URL}/productos/${productId}`, requestBase);
+            return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase);
           }
           
           // Normalizar la URL de la imagen
@@ -339,21 +361,27 @@ export class ProductsService {
           const request = { ...requestBase, imagenUrl: normalizedUrl };
           console.log('🔵 [FRONTEND] 📤 Request CON nueva imagen al backend:', request);
           
-          return this.http.put(`${this.API_URL}/productos/${productId}`, request);
+          return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, request);
         }),
         catchError(error => {
           console.error('🔴 [FRONTEND] Error en subida de imagen:', error);
           
           // Si falla la subida, actualizar producto sin imagen nueva (mantener la existente)
           console.log('🟡 [FRONTEND] Fallback: actualizando producto sin nueva imagen personalizada');
-          return this.http.put(`${this.API_URL}/productos/${productId}`, requestBase);
+          return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase);
         })
       );
     } else {
       // No hay imagen nueva, actualizar con datos existentes
       console.log('🔵 [FRONTEND] No hay imagen nueva, actualizando solo datos del producto');
-      return this.http.put(`${this.API_URL}/productos/${productId}`, requestBase);
+      return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase);
     }
+  }
+
+  // Método para verificar variantes con pedidos antes de actualizar
+  verificarVariantesConPedidos(productId: number): Observable<any> {
+    console.log('🔵 [FRONTEND] Verificando variantes con pedidos para producto ID:', productId);
+    return this.http.get(`${this.API_URL}/productos/${productId}/verificar-pedidos`);
   }
 
   private getMockProducts(): Observable<ProductoDTO[]> {

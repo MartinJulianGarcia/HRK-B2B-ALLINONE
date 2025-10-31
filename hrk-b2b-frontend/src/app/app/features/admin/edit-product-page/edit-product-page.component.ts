@@ -25,7 +25,8 @@ export interface ProductFormData {
 export interface VarianteStock {
   color: string;
   talle: string;
-  stock: number;
+  stock: number; // Stock actual (modificado)
+  stockOriginal: number; // Stock original cuando se carga el producto
   sku: string;
 }
 
@@ -90,6 +91,17 @@ export class EditProductPageComponent implements OnInit {
   variantesStock: VarianteStock[] = [];
   stockTotal = 0;
   imagenActualUrl: string | null = null;
+  
+  // Para manejar confirmación de variantes con pedidos
+  showConfirmDialog = false;
+  variantesConPedidos: any[] = [];
+  datosPendientes: any = null;
+  
+  // Para edición inline
+  editingName = false;
+  editingDescription = false;
+  editingPrice = false;
+  showAdvancedOptions = false;
 
   constructor(
     private authService: AuthService,
@@ -173,21 +185,17 @@ export class EditProductPageComponent implements OnInit {
       this.productData.precio = producto.variantes[0].precio;
     }
 
-    // Calcular stock total
-    this.productData.stock = producto.variantes.reduce((total, v) => total + v.stockDisponible, 0);
-
-    // Generar variantes stock
+    // Generar variantes stock directamente desde las variantes del producto
     this.variantesStock = producto.variantes.map(v => ({
       color: v.color,
       talle: v.talle,
-      stock: v.stockDisponible,
+      stock: v.stockDisponible, // Stock modificado (inicialmente igual al original)
+      stockOriginal: v.stockDisponible, // Guardar stock original
       sku: v.sku
     }));
 
-    this.stockTotal = this.productData.stock;
-    if (this.variantesStock.length > 0) {
-      this.showStockSection = true;
-    }
+    // Mostrar siempre la sección de stock si hay variantes
+    this.showStockSection = this.variantesStock.length > 0;
 
     this.cdr.detectChanges();
   }
@@ -222,23 +230,48 @@ export class EditProductPageComponent implements OnInit {
       return;
     }
 
-    if (this.showStockSection && !this.validarStockVariantes()) {
+    // Ya no validamos stock total, solo que existan variantes
+    if (this.variantesStock.length === 0) {
+      this.error = 'No hay variantes para actualizar';
       this.loading = false;
       return;
     }
 
-    const datosEnvio: any = { ...this.productData };
+    const datosEnvio: any = { 
+      nombre: this.productData.nombre,
+      tipo: this.productData.tipo,
+      categoria: this.productData.categoria,
+      sku: this.productData.sku,
+      descripcion: this.productData.descripcion || ''
+    };
     
-    if (this.showStockSection && this.variantesStock.length > 0) {
+    // Siempre enviar stock por variante
+    if (this.variantesStock.length > 0) {
       const stockPorVariante: { [key: string]: number } = {};
       this.variantesStock.forEach(variante => {
         const clave = `${variante.color}-${variante.talle}`;
-        stockPorVariante[clave] = variante.stock;
+        stockPorVariante[clave] = variante.stock || 0;
       });
       datosEnvio.stockPorVariante = stockPorVariante;
     }
 
-    this.productsService.updateProduct(this.productId, datosEnvio).subscribe({
+    // Si hay imagen nueva, se agregará en el servicio
+    if (this.productData.imagen && this.productData.imagen instanceof File) {
+      datosEnvio.imagen = this.productData.imagen;
+    }
+
+    // Si se modificaron colores/talles (solo en opciones avanzadas expandidas)
+    if (this.showAdvancedOptions) {
+      datosEnvio.colores = this.productData.colores;
+      datosEnvio.talles = this.productData.talles;
+    }
+    
+    // Siempre enviar precio (es necesario para el backend)
+    if (this.productData.precio != null && this.productData.precio > 0) {
+      datosEnvio.precio = this.productData.precio;
+    }
+
+    this.productsService.updateProduct(this.productId, datosEnvio, false).subscribe({
       next: (response) => {
         this.loading = false;
         this.success = 'Producto actualizado exitosamente';
@@ -248,17 +281,33 @@ export class EditProductPageComponent implements OnInit {
           this.router.navigate(['/catalog']);
         }, 2000);
       },
-      error: (error) => {
-        this.loading = false;
-        console.error('Error al actualizar producto:', error);
-        let errorMessage = 'Error al actualizar el producto. Inténtalo de nuevo.';
-        if (error.status === 400) {
-          errorMessage = 'Error 400: Datos inválidos. Revisa que todos los campos estén completos.';
-        } else if (error.status === 500) {
-          errorMessage = 'Error del servidor. Inténtalo más tarde.';
-        }
-        this.error = errorMessage;
-      }
+              error: (error) => {
+                this.loading = false;
+                console.error('🔴 [FRONTEND] Error al actualizar producto:', error);
+                console.error('🔴 [FRONTEND] Error status:', error.status);
+                console.error('🔴 [FRONTEND] Error message:', error.message);
+                console.error('🔴 [FRONTEND] Error body:', error.error);
+
+                // Si el error es 409 (Conflict) significa que hay variantes con pedidos
+                if (error.status === 409 && error.error?.requiereConfirmacion) {
+                  console.log('🟡 [FRONTEND] Variantes con pedidos detectadas, mostrando diálogo de confirmación');
+                  this.variantesConPedidos = error.error?.verificacion?.variantesConPedidos || [];
+                  this.datosPendientes = datosEnvio;
+                  this.showConfirmDialog = true;
+                  return;
+                }
+
+                let errorMessage = 'Error al actualizar el producto. Inténtalo de nuevo.';
+                if (error.status === 400) {
+                  errorMessage = 'Error 400: Datos inválidos. Revisa que todos los campos estén completos.';
+                } else if (error.status === 500) {
+                  // Mostrar el mensaje del servidor si está disponible
+                  const serverMessage = error.error?.error || error.message;
+                  errorMessage = `Error del servidor: ${serverMessage}`;
+                  console.error('🔴 [FRONTEND] Mensaje del servidor:', serverMessage);
+                }
+                this.error = errorMessage;
+              }
     });
   }
 
@@ -377,6 +426,7 @@ export class EditProductPageComponent implements OnInit {
             color: color,
             talle: talleLimpio,
             stock: 0,
+            stockOriginal: 0, // Stock original para nuevas variantes
             sku: sku
           });
         }
@@ -514,6 +564,114 @@ export class EditProductPageComponent implements OnInit {
       setTimeout(() => {
         result.element.classList.remove('search-highlight');
       }, 2000);
+    }
+  }
+
+  // Métodos para manejar confirmación de variantes con pedidos
+  confirmarActualizacionConVariantes(): void {
+    if (!this.datosPendientes) {
+      return;
+    }
+    
+    this.showConfirmDialog = false;
+    this.loading = true;
+    this.error = '';
+    
+    console.log('🔵 [FRONTEND] Confirmando actualización con variantes con pedidos');
+    
+    this.productsService.updateProduct(this.productId, this.datosPendientes, true).subscribe({
+      next: (response) => {
+        this.loading = false;
+        this.success = 'Producto actualizado exitosamente. Las variantes con pedidos fueron mantenidas con stock en 0.';
+        console.log('Producto actualizado:', response);
+        
+        setTimeout(() => {
+          this.router.navigate(['/catalog']);
+        }, 2000);
+      },
+      error: (error) => {
+        this.loading = false;
+        console.error('Error al actualizar producto:', error);
+        let errorMessage = 'Error al actualizar el producto. Inténtalo de nuevo.';
+        if (error.status === 400) {
+          errorMessage = 'Error 400: Datos inválidos. Revisa que todos los campos estén completos.';
+        } else if (error.status === 500) {
+          errorMessage = 'Error del servidor. Inténtalo más tarde.';
+        }
+        this.error = errorMessage;
+      }
+    });
+  }
+
+  cancelarActualizacionConVariantes(): void {
+    this.showConfirmDialog = false;
+    this.variantesConPedidos = [];
+    this.datosPendientes = null;
+    this.error = '';
+  }
+
+  // Métodos para edición inline
+  toggleImageEdit(): void {
+    const imageInput = document.getElementById('imagen-input') as HTMLInputElement;
+    if (imageInput) {
+      imageInput.click();
+    }
+  }
+
+  toggleNameEdit(): void {
+    this.editingName = !this.editingName;
+    if (this.editingName) {
+      setTimeout(() => {
+        const nameInput = document.querySelector('.name-input') as HTMLInputElement;
+        if (nameInput) {
+          nameInput.focus();
+          nameInput.select();
+        }
+      }, 0);
+    }
+  }
+
+  toggleDescriptionEdit(): void {
+    this.editingDescription = !this.editingDescription;
+    if (this.editingDescription) {
+      setTimeout(() => {
+        const descInput = document.querySelector('.description-input') as HTMLTextAreaElement;
+        if (descInput) {
+          descInput.focus();
+        }
+      }, 0);
+    }
+  }
+
+  togglePriceEdit(): void {
+    this.editingPrice = !this.editingPrice;
+    if (this.editingPrice) {
+      setTimeout(() => {
+        const priceInput = document.querySelector('.price-input') as HTMLInputElement;
+        if (priceInput) {
+          priceInput.focus();
+          priceInput.select();
+        }
+      }, 0);
+    }
+  }
+
+  toggleAdvancedOptions(): void {
+    this.showAdvancedOptions = !this.showAdvancedOptions;
+  }
+
+  // Métodos para modificar stock con botones +/-
+  incrementStock(index: number): void {
+    if (this.variantesStock[index]) {
+      this.variantesStock[index].stock = (this.variantesStock[index].stock || 0) + 1;
+      this.cdr.detectChanges();
+    }
+  }
+
+  decrementStock(index: number): void {
+    if (this.variantesStock[index] && this.variantesStock[index].stock > 0) {
+      this.variantesStock[index].stock = this.variantesStock[index].stock - 1;
+      this.cdr.detectChanges();
     }
   }
 }
