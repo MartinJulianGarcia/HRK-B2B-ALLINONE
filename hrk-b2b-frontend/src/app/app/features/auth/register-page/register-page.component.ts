@@ -23,6 +23,7 @@ export class RegisterPageComponent {
   loading = false;
   error = '';
   passwordsMatch = false;
+  cuitValid = false;
 
   constructor(
     private authService: AuthService,
@@ -74,12 +75,28 @@ export class RegisterPageComponent {
       this.cuitFormatted = '';
     }
     
-    // Guardar el CUIT formateado como string
-    this.userData.cuit = this.cuitFormatted;
+    // Validar que tenga exactamente 11 dígitos (00000000000 a 99999999999)
+    this.cuitValid = value.length === 11 && /^\d{11}$/.test(value);
+    
+    // Guardar el CUIT formateado como string solo si es válido
+    // Si no es válido, guardar solo los números sin formatear para mantener consistencia
+    if (this.cuitValid) {
+      this.userData.cuit = this.cuitFormatted;
+    } else {
+      // Guardar solo los números sin formato para validación
+      this.userData.cuit = value;
+    }
   }
 
   onSubmit(): void {
     if (this.loading) return;
+
+    // Verificar que el CUIT sea válido (exactamente 11 dígitos)
+    if (!this.cuitValid) {
+      this.error = 'El CUIT debe tener exactamente 11 dígitos (formato: 00000000000 a 99999999999)';
+      this.showErrorMessage('El CUIT debe tener exactamente 11 dígitos numéricos.');
+      return;
+    }
 
     // Verificar que las contraseñas coincidan
     if (this.userData.password !== this.password2) {
@@ -135,5 +152,6 @@ export class RegisterPageComponent {
     this.cuitFormatted = '';
     this.password2 = '';
     this.passwordsMatch = false;
+    this.cuitValid = false;
   }
 }

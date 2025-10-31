@@ -169,17 +169,25 @@ export class AddProductPageComponent implements OnInit {
     const datosEnvio: any = { ...this.productData };
     
     // Si se está usando stock individual, agregar el mapa de stock por variante
+    // y calcular la suma total para ponerla en stock inicial (para mantener compatibilidad con backend)
     if (this.showStockSection && this.variantesStock.length > 0) {
       const stockPorVariante: { [key: string]: number } = {};
+      let sumaStock = 0;
       
       this.variantesStock.forEach(variante => {
         const clave = `${variante.color}-${variante.talle}`;
-        stockPorVariante[clave] = variante.stock;
-        console.log('🔵 [FRONTEND] Agregando stock:', clave, '=', variante.stock);
+        const stockVariante = variante.stock || 0;
+        stockPorVariante[clave] = stockVariante;
+        sumaStock += stockVariante;
+        console.log('🔵 [FRONTEND] Agregando stock:', clave, '=', stockVariante);
       });
       
       datosEnvio.stockPorVariante = stockPorVariante;
+      // Calcular la suma total y asignarla al stock inicial para mantener compatibilidad
+      datosEnvio.stock = sumaStock;
+      this.productData.stock = sumaStock; // Actualizar también en el modelo para que se vea en el campo deshabilitado
       console.log('🔵 [FRONTEND] Stock por variante:', stockPorVariante);
+      console.log('🔵 [FRONTEND] Stock total calculado (suma de individuales):', sumaStock);
     }
 
     // Llamada real al backend para crear producto
@@ -244,10 +252,16 @@ export class AddProductPageComponent implements OnInit {
       error: (error) => {
         this.loading = false;
         console.error('🔴 [FRONTEND] Error al crear producto:', error);
+        console.error('🔴 [FRONTEND] Error completo:', JSON.stringify(error, null, 2));
+        console.error('🔴 [FRONTEND] Error body:', error.error);
+        console.error('🔴 [FRONTEND] Error message:', error.error?.error || error.error?.message || error.message);
         
         let errorMessage = 'Error al crear el producto. Inténtalo de nuevo.';
         if (error.status === 400) {
-          errorMessage = 'Error 400: Datos inválidos. Revisa que todos los campos estén completos.';
+          // Intentar obtener el mensaje específico del backend
+          const backendMessage = error.error?.error || error.error?.message || 'Error desconocido';
+          errorMessage = `Error 400: ${backendMessage}`;
+          console.error('🔴 [FRONTEND] Mensaje del backend:', backendMessage);
         } else if (error.status === 500) {
           errorMessage = 'Error del servidor. Inténtalo más tarde.';
         } else if (error.message && error.message.includes('HTML')) {
@@ -295,9 +309,12 @@ export class AddProductPageComponent implements OnInit {
       return false;
     }
 
-    if (this.productData.stock === null || this.productData.stock < 0) {
-      this.error = 'El stock debe ser mayor o igual a 0';
-      return false;
+    // Solo validar stock inicial si NO se está usando stock individual
+    if (!this.showStockSection) {
+      if (this.productData.stock === null || this.productData.stock < 0) {
+        this.error = 'El stock debe ser mayor o igual a 0';
+        return false;
+      }
     }
 
     return true;
@@ -401,6 +418,14 @@ export class AddProductPageComponent implements OnInit {
     // Esto permite total flexibilidad para todos los tipos de producto
   }
 
+  onSkuChange(event: any): void {
+    // Convertir automáticamente a mayúsculas
+    const value = event.target.value.toUpperCase();
+    this.productData.sku = value;
+    // Actualizar el valor del input para reflejar el cambio
+    event.target.value = value;
+  }
+
   // Nuevo: Generar variantes para stock individual
   generarVariantesStock(): void {
     if (!this.productData.colores.length || !this.productData.talles.length) {
@@ -470,6 +495,12 @@ export class AddProductPageComponent implements OnInit {
       const stock = variante.stock || 0;
       return total + stock;
     }, 0);
+    
+    // Si estamos usando stock individual, actualizar también el campo stock inicial
+    // para que se vea la suma en tiempo real (aunque esté deshabilitado)
+    if (this.showStockSection) {
+      this.productData.stock = this.stockTotal;
+    }
     
     // Forzar detección de cambios
     this.cdr.detectChanges();

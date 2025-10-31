@@ -203,10 +203,27 @@ export class ProductsService {
       colores: productData.colores || [],
       talles: productData.talles || [],
       precio: productData.precio,
-      stock: productData.stock,
-      descripcion: productData.descripcion || '',
-      stockPorVariante: productData.stockPorVariante // ⭐ AGREGAR STOCK POR VARIANTE
+      descripcion: productData.descripcion || ''
     };
+
+    // Manejar stock: 
+    // Si se usa stockPorVariante, también incluir stock (suma) para compatibilidad con backend
+    if (productData.stockPorVariante != null && Object.keys(productData.stockPorVariante).length > 0) {
+      // Usando stock individual, enviar ambos: stockPorVariante y stock (suma)
+      requestBase.stockPorVariante = productData.stockPorVariante;
+      // Calcular la suma de todos los stocks individuales
+      let sumaStock = 0;
+      Object.values(productData.stockPorVariante).forEach((stock: any) => {
+        sumaStock += stock || 0;
+      });
+      requestBase.stock = sumaStock;
+      console.log('🔵 [FRONTEND] Stock individual detectado, suma calculada:', sumaStock);
+    } else {
+      // Usando stock inicial, incluir el campo stock
+      if (productData.stock != null) {
+        requestBase.stock = productData.stock;
+      }
+    }
 
     // Verificar si hay imagen
     console.log('🔵 [FRONTEND] Verificando imagen:', {
@@ -246,6 +263,7 @@ export class ProductsService {
           const request = { ...requestBase, imagenUrl: normalizedUrl };
           console.log('🔵 [FRONTEND] 📤 Request CON imagen al backend:', request);
           console.log('🔵 [FRONTEND] ✅ imagenUrl que se envía al backend:', request.imagenUrl);
+          console.log('🔵 [FRONTEND] 🔍 STOCK EN REQUEST:', request.stock);
           console.log('🔵 [FRONTEND] 🔍 STOCK POR VARIANTE EN REQUEST:', request.stockPorVariante);
           console.log('🔵 [FRONTEND] 🔍 TIPO DE STOCK POR VARIANTE:', typeof request.stockPorVariante);
           console.log('🔵 [FRONTEND] 🔍 JSON STRINGIFY:', JSON.stringify(request.stockPorVariante));

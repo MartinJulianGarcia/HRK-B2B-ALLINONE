@@ -268,12 +268,13 @@
 
             <div class="form-group">
               <label for="sku">SKU *</label>
-              <input 
-                type="text" 
-                id="sku" 
-                name="sku" 
-                [(ngModel)]="productData.sku" 
-                required 
+              <input
+                type="text"
+                id="sku"
+                name="sku"
+                [(ngModel)]="productData.sku"
+                (input)="onSkuChange($event)"
+                required
                 class="form-control"
                 placeholder="Ej: REM-001-TJ"
               >

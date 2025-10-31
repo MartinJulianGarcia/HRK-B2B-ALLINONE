@@ -58,7 +58,18 @@
           placeholder="xx-xxxxxxxx-x"
           class="form-control"
           maxlength="13"
+          required
+          #cuit="ngModel"
         >
+        <div *ngIf="cuit.touched && !cuitValid && cuitFormatted.length > 0" class="error">
+          El CUIT debe tener exactamente 11 dígitos numéricos (00000000000 a 99999999999)
+        </div>
+        <div *ngIf="cuit.touched && cuitFormatted === ''" class="error">
+          El CUIT es requerido
+        </div>
+        <div *ngIf="cuitValid" class="success">
+          ✓ CUIT válido
+        </div>
       </div>
 
       <div class="form-group">
@@ -110,10 +121,10 @@
 
       <button 
         type="submit" 
-        [disabled]="registerForm.invalid || !passwordsMatch || loading"
+        [disabled]="registerForm.invalid || !passwordsMatch || !cuitValid || loading"
         class="btn"
-        [class.btn-primary]="registerForm.invalid || !passwordsMatch || loading"
-        [class.btn-success]="registerForm.valid && passwordsMatch && !loading"
+        [class.btn-primary]="registerForm.invalid || !passwordsMatch || !cuitValid || loading"
+        [class.btn-success]="registerForm.valid && passwordsMatch && cuitValid && !loading"
       >
         Sign Up
       </button>

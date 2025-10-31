@@ -384,6 +384,14 @@ export class EditProductPageComponent implements OnInit {
     // Esto permite total flexibilidad para todos los tipos de producto
   }
 
+  onSkuChange(event: any): void {
+    // Convertir automáticamente a mayúsculas
+    const value = event.target.value.toUpperCase();
+    this.productData.sku = value;
+    // Actualizar el valor del input para reflejar el cambio
+    event.target.value = value;
+  }
+
   onImageSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
