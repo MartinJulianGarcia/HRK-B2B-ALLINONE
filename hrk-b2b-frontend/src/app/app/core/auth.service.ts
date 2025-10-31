@@ -128,6 +128,20 @@ export class AuthService {
       );
   }
 
+  recuperarContraseña(email: string): Observable<{ success: boolean; message: string }> {
+    console.log('🔵 [AUTH SERVICE] Solicitando recuperación de contraseña para:', email);
+    return this.http.post<{ success: boolean; message: string }>(
+      `${this.API_URL}/auth/recuperar-contraseña`,
+      { email }
+    ).pipe(
+      catchError((error: any) => {
+        console.error('🔴 [AUTH SERVICE] Error al recuperar contraseña:', error);
+        const errorMessage = error.error?.message || 'Error al solicitar recuperación de contraseña';
+        return throwError(() => new Error(errorMessage));
+      })
+    );
+  }
+
   logout(): void {
     this.currentUserSubject.next(null);
     this.selectedClientSubject.next(null);

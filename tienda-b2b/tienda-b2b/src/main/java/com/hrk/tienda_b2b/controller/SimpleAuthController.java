@@ -5,6 +5,7 @@ import com.hrk.tienda_b2b.dto.LoginRequest;
 import com.hrk.tienda_b2b.dto.UsuarioDTO;
 import com.hrk.tienda_b2b.model.Usuario;
 import com.hrk.tienda_b2b.service.UsuarioService;
+import com.hrk.tienda_b2b.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class SimpleAuthController {
     
     private final UsuarioService usuarioService;
+    private final EmailService emailService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
@@ -71,6 +73,59 @@ public class SimpleAuthController {
             errorResponse.put("success", false);
             errorResponse.put("message", e.getMessage());
             return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/recuperar-contraseña")
+    public ResponseEntity<?> recuperarContraseña(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        log.info("🔵 [SIMPLE] Recuperación de contraseña solicitada para email: {}", email);
+
+        try {
+            // Buscar usuario por email
+            var usuarioOpt = usuarioService.obtenerPorEmail(email);
+            
+            if (usuarioOpt.isEmpty()) {
+                log.warn("🟡 [SIMPLE] Email no encontrado: {}", email);
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "No se encontró un usuario con ese email");
+                // Por seguridad, no revelamos si el email existe o no
+                return ResponseEntity.ok(errorResponse);
+            }
+
+            Usuario usuario = usuarioOpt.get();
+            
+            // Verificar que el usuario esté activo
+            if (usuario.getActivo() == null || !usuario.getActivo()) {
+                log.warn("🟡 [SIMPLE] Usuario inactivo: {}", email);
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "No se encontró un usuario con ese email");
+                return ResponseEntity.ok(errorResponse);
+            }
+
+            // Enviar email con la contraseña
+            // Nota: En este sistema las contraseñas se almacenan en texto plano
+            emailService.enviarContraseña(
+                usuario.getEmail(),
+                usuario.getNombreRazonSocial(),
+                usuario.getPassword()
+            );
+
+            log.info("🟢 [SIMPLE] Email de recuperación enviado a: {}", email);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Se ha enviado un email con tu contraseña a " + email);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("🔴 [SIMPLE] Error al recuperar contraseña: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Error al enviar el email de recuperación. Por favor intenta nuevamente.");
+            return ResponseEntity.status(500).body(errorResponse);
         }
     }
 

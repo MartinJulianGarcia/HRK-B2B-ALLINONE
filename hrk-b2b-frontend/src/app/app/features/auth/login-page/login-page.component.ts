@@ -15,6 +15,10 @@ export class LoginPageComponent {
   credentials: LoginRequest = { email: '', password: '' };
   loading = false;
   error = '';
+  mostrarRecuperacion = false;
+  emailRecuperacion = '';
+  recuperando = false;
+  mensajeRecuperacion = '';
 
   constructor(
     private authService: AuthService,
@@ -49,6 +53,37 @@ export class LoginPageComponent {
 
   clearForm(): void {
     this.credentials = { email: '', password: '' };
+  }
+
+  toggleRecuperacion(): void {
+    this.mostrarRecuperacion = !this.mostrarRecuperacion;
+    this.emailRecuperacion = '';
+    this.mensajeRecuperacion = '';
+  }
+
+  solicitarRecuperacion(): void {
+    if (!this.emailRecuperacion || !this.emailRecuperacion.includes('@')) {
+      alert('Por favor ingresa un email válido');
+      return;
+    }
+
+    this.recuperando = true;
+    this.mensajeRecuperacion = '';
+
+    this.authService.recuperarContraseña(this.emailRecuperacion).subscribe({
+      next: (response) => {
+        this.recuperando = false;
+        this.mensajeRecuperacion = response.message || 'Se ha enviado un email con tu contraseña';
+        alert(this.mensajeRecuperacion);
+        this.mostrarRecuperacion = false;
+        this.emailRecuperacion = '';
+      },
+      error: (error) => {
+        this.recuperando = false;
+        this.mensajeRecuperacion = error.message || 'Error al solicitar recuperación de contraseña';
+        alert(this.mensajeRecuperacion);
+      }
+    });
   }
 
 }

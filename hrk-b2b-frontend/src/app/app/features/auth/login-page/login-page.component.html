@@ -65,6 +65,56 @@
 
     <div class="login-footer">
       <p>¿No tienes cuenta? <a routerLink="/register">Regístrate aquí</a></p>
+      <p>
+        <a href="#" (click)="$event.preventDefault(); toggleRecuperacion()" class="forgot-password-link">
+          ¿Olvidaste tu contraseña?
+        </a>
+      </p>
+    </div>
+
+    <!-- Sección de recuperación de contraseña -->
+    <div *ngIf="mostrarRecuperacion" class="recuperacion-section">
+      <h3>Recuperar Contraseña</h3>
+      <p>Ingresa tu email y te enviaremos tu contraseña por correo electrónico.</p>
+      
+      <div class="form-group">
+        <label for="emailRecuperacion">Email:</label>
+        <input 
+          type="email" 
+          id="emailRecuperacion" 
+          name="emailRecuperacion" 
+          [(ngModel)]="emailRecuperacion" 
+          required 
+          email
+          class="form-control"
+          [disabled]="recuperando"
+          placeholder="tu-email@ejemplo.com"
+        >
+      </div>
+
+      <div *ngIf="mensajeRecuperacion" class="mensaje-recuperacion" [class.error]="mensajeRecuperacion.includes('Error')">
+        {{ mensajeRecuperacion }}
+      </div>
+
+      <div class="recuperacion-actions">
+        <button 
+          type="button"
+          (click)="solicitarRecuperacion()" 
+          [disabled]="!emailRecuperacion || recuperando"
+          class="btn btn-primary"
+        >
+          <span *ngIf="!recuperando">Enviar Contraseña</span>
+          <span *ngIf="recuperando">Enviando...</span>
+        </button>
+        <button 
+          type="button"
+          (click)="toggleRecuperacion()" 
+          [disabled]="recuperando"
+          class="btn btn-secondary"
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   </div>
 </div>
