@@ -430,6 +430,170 @@
   font-weight: 500;
   word-wrap: break-word;
   line-height: 1.3;
+  
+  &.clickable-name {
+    cursor: pointer;
+    transition: color 0.3s;
+    
+    &:hover {
+      color: #8b5cf6;
+      text-decoration: underline;
+    }
+  }
+}
+
+.clickable-bar {
+  cursor: pointer;
+  transition: opacity 0.3s, transform 0.3s;
+  
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+  }
+}
+
+.bar-selected {
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5);
+  border: 2px solid #8b5cf6;
+}
+
+/* Estilos para detalles del producto */
+.producto-detalles {
+  margin-top: 30px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px solid #8b5cf6;
+}
+
+.detalles-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.detalles-header h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.close-details {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+  
+  &:hover {
+    background: #c82333;
+  }
+}
+
+.detalles-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  
+  &.highlight {
+    color: #8b5cf6;
+    font-size: 24px;
+  }
+}
+
+.variantes-detalle {
+  margin-top: 20px;
+}
+
+.variantes-detalle h5 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 15px 0;
+}
+
+.variantes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variante-item {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.variante-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.variante-sku {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.variante-attr {
+  font-size: 12px;
+  color: #666;
+}
+
+.variante-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.variante-venta {
+  font-size: 16px;
+  font-weight: bold;
+  color: #8b5cf6;
+}
+
+.variante-stock {
+  font-size: 12px;
+  color: #888;
 }
 
 /* Estilos para botones de métricas expandibles */

@@ -28,6 +28,11 @@ export class DashboardsPageComponent implements OnInit {
   topArticulosData: any[] = [];
   topArticulosCount: number = 10; // Por defecto top 10
   
+  // Detalles del producto seleccionado
+  productoSeleccionado: number | null = null;
+  loadingDetallesProducto = false;
+  detallesProducto: any = null;
+  
   // Métricas expandibles
   metricasExpandidas: any = {
     ordenesCanceladas: false,
@@ -108,6 +113,10 @@ export class DashboardsPageComponent implements OnInit {
     // Recargar el gráfico cuando cambia el período
     this.loadChart();
     this.loadTopArticulos(); // También recargar top artículos con el mismo período
+    // Si hay un producto seleccionado, recargar sus detalles también
+    if (this.productoSeleccionado) {
+      this.loadDetallesProducto(this.productoSeleccionado);
+    }
   }
 
   loadTopArticulos(): void {
@@ -199,6 +208,52 @@ export class DashboardsPageComponent implements OnInit {
       return 0;
     }
     return (cantidad / maxValue) * 100;
+  }
+
+  seleccionarProducto(productoId: number): void {
+    // Si ya está seleccionado, cerrar detalles. Si no, abrir
+    if (this.productoSeleccionado === productoId) {
+      this.cerrarDetallesProducto();
+    } else {
+      this.productoSeleccionado = productoId;
+      this.loadDetallesProducto(productoId);
+    }
+  }
+
+  cerrarDetallesProducto(): void {
+    this.productoSeleccionado = null;
+    this.detallesProducto = null;
+  }
+
+  loadDetallesProducto(productoId: number): void {
+    this.loadingDetallesProducto = true;
+    // Calcular período según selección (mismo que el gráfico)
+    const hasta = new Date();
+    const desde = new Date();
+    
+    // Si es menor a 1, son días (ej: 0.033 = 1 día)
+    if (this.selectedPeriod < 1) {
+      const dias = Math.round(this.selectedPeriod * 30); // 0.033 * 30 = 1 día
+      desde.setDate(desde.getDate() - dias);
+    } else {
+      desde.setMonth(desde.getMonth() - this.selectedPeriod);
+    }
+    
+    const desdeStr = desde.toISOString();
+    const hastaStr = hasta.toISOString();
+    
+    this.http.get<any>(`${this.API_URL}/dashboards/detalles-producto/${productoId}?desde=${desdeStr}&hasta=${hastaStr}`, {
+      headers: this.getAuthHeaders()
+    }).subscribe({
+      next: (data) => {
+        this.detallesProducto = data;
+        this.loadingDetallesProducto = false;
+      },
+      error: (error) => {
+        console.error('Error al cargar detalles del producto:', error);
+        this.loadingDetallesProducto = false;
+      }
+    });
   }
 
   toggleMetric(metricKey: string): void {

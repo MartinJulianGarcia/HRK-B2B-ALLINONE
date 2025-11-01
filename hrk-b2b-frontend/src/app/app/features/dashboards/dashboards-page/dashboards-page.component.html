@@ -118,18 +118,20 @@
               <div *ngFor="let item of topArticulosData; let i = index" class="bar-item-vertical">
                 <div class="bar-wrapper-vertical">
                   <div 
-                    class="bar-fill-vertical" 
+                    class="bar-fill-vertical clickable-bar" 
                     [style.height.%]="getBarHeight(item.cantidadVendida)"
                     [class.bar-top1]="i === 0"
                     [class.bar-top2]="i === 1"
                     [class.bar-top3]="i === 2"
-                    [class.bar-other]="i > 2">
+                    [class.bar-other]="i > 2"
+                    [class.bar-selected]="productoSeleccionado === item.productoId"
+                    (click)="seleccionarProducto(item.productoId)">
                     <span class="bar-value-vertical">{{ item.cantidadVendida }}</span>
                   </div>
                 </div>
                 <div class="bar-label-vertical">
                   <span class="bar-rank-vertical">{{ i + 1 }}.</span>
-                  <span class="bar-name-vertical">{{ item.nombre }}</span>
+                  <span class="bar-name-vertical clickable-name" (click)="seleccionarProducto(item.productoId)">{{ item.nombre }}</span>
                 </div>
               </div>
             </div>
@@ -137,6 +139,45 @@
         </div>
         <div *ngIf="!loadingTopArticulos && (!topArticulosData || topArticulosData.length === 0)" class="no-data">
           No hay datos de artículos vendidos en este período
+        </div>
+        
+        <!-- Detalles del producto seleccionado -->
+        <div *ngIf="productoSeleccionado && detallesProducto" class="producto-detalles">
+          <div class="detalles-header">
+            <h4>{{ detallesProducto.nombreProducto }}</h4>
+            <button class="close-details" (click)="cerrarDetallesProducto()">✕</button>
+          </div>
+          
+          <div class="detalles-stats">
+            <div class="stat-item">
+              <span class="stat-label">% Vendido sobre Stock Histórico:</span>
+              <span class="stat-value highlight">{{ detallesProducto.porcentajeVendido }}%</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Stock Histórico Total:</span>
+              <span class="stat-value">{{ detallesProducto.stockHistoricoTotal }} unidades</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Ventas Totales:</span>
+              <span class="stat-value">{{ detallesProducto.ventasTotales }} unidades</span>
+            </div>
+          </div>
+          
+          <div class="variantes-detalle">
+            <h5>Ventas por Variante:</h5>
+            <div class="variantes-list">
+              <div *ngFor="let variante of detallesProducto.variantes" class="variante-item">
+                <div class="variante-info">
+                  <span class="variante-sku">{{ variante.sku }}</span>
+                  <span class="variante-attr">{{ variante.color }} - Talle {{ variante.talle }}</span>
+                </div>
+                <div class="variante-stats">
+                  <span class="variante-venta">{{ variante.cantidadVendida }} vendidas</span>
+                  <span class="variante-stock">Stock histórico: {{ variante.stockHistorico }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

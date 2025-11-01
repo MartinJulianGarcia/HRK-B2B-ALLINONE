@@ -68,5 +68,16 @@ public class DashboardController {
         
         return ResponseEntity.ok(resultado);
     }
+
+    @GetMapping("/detalles-producto/{productoId}")
+    public ResponseEntity<Map<String, Object>> obtenerDetallesProducto(
+            @PathVariable Long productoId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        
+        Map<String, Object> resultado = dashboardService.obtenerDetallesProducto(productoId, desde, hasta);
+        
+        return ResponseEntity.ok(resultado);
+    }
 }
 

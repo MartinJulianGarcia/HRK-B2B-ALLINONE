@@ -7,14 +7,17 @@ import com.hrk.tienda_b2b.model.TipoAprobacionDevolucion;
 import com.hrk.tienda_b2b.model.DetallePedido;
 import com.hrk.tienda_b2b.model.ProductoVariante;
 import com.hrk.tienda_b2b.model.StockHistorico;
+import com.hrk.tienda_b2b.model.Producto;
 import com.hrk.tienda_b2b.repository.PedidoRepository;
 import com.hrk.tienda_b2b.repository.DetallePedidoRepository;
 import com.hrk.tienda_b2b.repository.ProductoVarianteRepository;
 import com.hrk.tienda_b2b.repository.StockHistoricoRepository;
+import com.hrk.tienda_b2b.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final DetallePedidoRepository detallePedidoRepository;
     private final ProductoVarianteRepository productoVarianteRepository;
     private final StockHistoricoRepository stockHistoricoRepository;
+    private final ProductoRepository productoRepository;
 
     @Override
     public Long contarOrdenesCanceladas(LocalDateTime desde, LocalDateTime hasta) {
@@ -299,6 +303,121 @@ public class DashboardServiceImpl implements DashboardService {
                 .collect(Collectors.toList());
         
         return topArticulos;
+    }
+
+    @Override
+    public Map<String, Object> obtenerDetallesProducto(Long productoId, LocalDateTime desde, LocalDateTime hasta) {
+        // Por defecto: últimos 3 meses si no se especifica
+        final LocalDateTime fechaDesde = (desde != null) ? desde : LocalDateTime.now().minusMonths(3);
+        final LocalDateTime fechaHasta = (hasta != null) ? hasta : LocalDateTime.now();
+        
+        // Obtener el producto
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+        
+        // Calcular stock histórico del producto (suma de todas sus variantes)
+        int stockHistoricoTotal = 0;
+        List<Map<String, Object>> variantesDetalles = new ArrayList<>();
+        
+        if (producto.getVariantes() != null) {
+            for (ProductoVariante variante : producto.getVariantes()) {
+                // Calcular stock histórico de esta variante
+                List<StockHistorico> historicos = stockHistoricoRepository.findByVarianteOrderByFechaAsc(variante);
+                int stockHistoricoVariante = 0;
+                
+                for (StockHistorico historico : historicos) {
+                    if (historico.getTipo() == StockHistorico.TipoMovimientoStock.ENTRADA_INICIAL || 
+                        historico.getTipo() == StockHistorico.TipoMovimientoStock.AJUSTE_SUMA) {
+                        stockHistoricoVariante += historico.getCantidad();
+                    } else if (historico.getTipo() == StockHistorico.TipoMovimientoStock.AJUSTE_RESTA) {
+                        stockHistoricoVariante -= Math.abs(historico.getCantidad());
+                    }
+                }
+                
+                // Si no hay histórico, usar el stock acumulado del último registro o el stock actual
+                if (stockHistoricoVariante == 0 && !historicos.isEmpty()) {
+                    StockHistorico ultimo = historicos.get(historicos.size() - 1);
+                    stockHistoricoVariante = ultimo.getStockAcumulado();
+                } else if (stockHistoricoVariante == 0) {
+                    stockHistoricoVariante = variante.getStockDisponible() != null ? variante.getStockDisponible() : 0;
+                }
+                
+                stockHistoricoTotal += stockHistoricoVariante;
+                
+                // Calcular ventas de esta variante en el período
+                List<Pedido> pedidosVariante = pedidoRepository.findAll().stream()
+                        .filter(p -> (p.getEstado() == EstadoPedido.CONFIRMADO || p.getEstado() == EstadoPedido.ENTREGADO))
+                        .filter(p -> p.getTipo() != TipoDocumento.DEVOLUCION)
+                        .filter(p -> {
+                            if (fechaDesde != null && p.getFecha().isBefore(fechaDesde)) return false;
+                            if (fechaHasta != null && p.getFecha().isAfter(fechaHasta)) return false;
+                            return true;
+                        })
+                        .collect(Collectors.toList());
+                
+                int ventasVariante = 0;
+                for (Pedido pedido : pedidosVariante) {
+                    List<DetallePedido> detalles = detallePedidoRepository.findByPedidoId(pedido.getId());
+                    for (DetallePedido detalle : detalles) {
+                        if (detalle.getVariante() != null && detalle.getVariante().getId().equals(variante.getId())) {
+                            ventasVariante += detalle.getCantidad();
+                        }
+                    }
+                }
+                
+                // Descontar devoluciones
+                List<Pedido> devolucionesVariante = pedidoRepository.findAll().stream()
+                        .filter(p -> p.getTipo() == TipoDocumento.DEVOLUCION)
+                        .filter(p -> {
+                            if (fechaDesde != null && p.getFecha().isBefore(fechaDesde)) return false;
+                            if (fechaHasta != null && p.getFecha().isAfter(fechaHasta)) return false;
+                            return true;
+                        })
+                        .collect(Collectors.toList());
+                
+                for (Pedido devolucion : devolucionesVariante) {
+                    List<DetallePedido> detallesDev = detallePedidoRepository.findByPedidoId(devolucion.getId());
+                    for (DetallePedido detalle : detallesDev) {
+                        if (detalle.getVariante() != null && detalle.getVariante().getId().equals(variante.getId())) {
+                            ventasVariante = Math.max(0, ventasVariante - detalle.getCantidad());
+                        }
+                    }
+                }
+                
+                // Agregar detalles de la variante
+                Map<String, Object> detalleVariante = new HashMap<>();
+                detalleVariante.put("varianteId", variante.getId());
+                detalleVariante.put("sku", variante.getSku());
+                detalleVariante.put("color", variante.getColor());
+                detalleVariante.put("talle", variante.getTalle());
+                detalleVariante.put("stockHistorico", stockHistoricoVariante);
+                detalleVariante.put("cantidadVendida", ventasVariante);
+                variantesDetalles.add(detalleVariante);
+            }
+        }
+        
+        // Calcular ventas totales del producto (suma de todas las variantes)
+        int ventasTotales = variantesDetalles.stream()
+                .mapToInt(v -> (Integer) v.get("cantidadVendida"))
+                .sum();
+        
+        // Calcular porcentaje vendido
+        double porcentajeVendido = 0.0;
+        if (stockHistoricoTotal > 0) {
+            porcentajeVendido = (ventasTotales * 100.0) / stockHistoricoTotal;
+        }
+        
+        Map<String, Object> resultado = new HashMap<>();
+        resultado.put("productoId", producto.getId());
+        resultado.put("nombreProducto", producto.getNombre());
+        resultado.put("stockHistoricoTotal", stockHistoricoTotal);
+        resultado.put("ventasTotales", ventasTotales);
+        resultado.put("porcentajeVendido", Math.round(porcentajeVendido * 100.0) / 100.0);
+        resultado.put("variantes", variantesDetalles);
+        resultado.put("desde", fechaDesde.toString());
+        resultado.put("hasta", fechaHasta.toString());
+        
+        return resultado;
     }
 }
 

@@ -19,5 +19,8 @@ public interface DashboardService {
     // Top artículos más vendidos
     List<Map<String, Object>> obtenerTopArticulosMasVendidos(int top, LocalDateTime desde, LocalDateTime hasta);
     
+    // Detalles de un producto específico (stock histórico y ventas por variante)
+    Map<String, Object> obtenerDetallesProducto(Long productoId, LocalDateTime desde, LocalDateTime hasta);
+    
 }
 
