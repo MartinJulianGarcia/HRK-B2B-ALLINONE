@@ -13,6 +13,9 @@ import com.hrk.tienda_b2b.repository.DetallePedidoRepository;
 import com.hrk.tienda_b2b.repository.ProductoVarianteRepository;
 import com.hrk.tienda_b2b.repository.StockHistoricoRepository;
 import com.hrk.tienda_b2b.repository.ProductoRepository;
+import com.hrk.tienda_b2b.repository.UsuarioRepository;
+import com.hrk.tienda_b2b.model.Usuario;
+import com.hrk.tienda_b2b.model.TipoUsuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +35,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final ProductoVarianteRepository productoVarianteRepository;
     private final StockHistoricoRepository stockHistoricoRepository;
     private final ProductoRepository productoRepository;
+    private final UsuarioRepository usuarioRepository;
 
     @Override
     public Long contarOrdenesCanceladas(LocalDateTime desde, LocalDateTime hasta) {
@@ -416,6 +420,170 @@ public class DashboardServiceImpl implements DashboardService {
         resultado.put("variantes", variantesDetalles);
         resultado.put("desde", fechaDesde.toString());
         resultado.put("hasta", fechaHasta.toString());
+        
+        return resultado;
+    }
+
+    @Override
+    public Map<String, Object> calcularTotalFacturado(LocalDateTime desde, LocalDateTime hasta) {
+        // Por defecto: últimos 1 mes si no se especifica
+        final LocalDateTime fechaDesde = (desde != null) ? desde : LocalDateTime.now().minusMonths(1);
+        final LocalDateTime fechaHasta = (hasta != null) ? hasta : LocalDateTime.now();
+        
+        // Obtener todos los pedidos confirmados o entregados (no devoluciones)
+        List<Pedido> pedidos = pedidoRepository.findAll().stream()
+                .filter(p -> (p.getEstado() == EstadoPedido.CONFIRMADO || p.getEstado() == EstadoPedido.ENTREGADO))
+                .filter(p -> p.getTipo() != TipoDocumento.DEVOLUCION)
+                .filter(p -> {
+                    if (fechaDesde != null && p.getFecha().isBefore(fechaDesde)) return false;
+                    if (fechaHasta != null && p.getFecha().isAfter(fechaHasta)) return false;
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        // Sumar los totales de los pedidos
+        double totalFacturado = pedidos.stream()
+                .mapToDouble(p -> p.getTotal() != null ? p.getTotal() : 0.0)
+                .sum();
+        
+        Map<String, Object> resultado = new HashMap<>();
+        resultado.put("totalFacturado", totalFacturado);
+        resultado.put("cantidadPedidos", pedidos.size());
+        resultado.put("desde", fechaDesde.toString());
+        resultado.put("hasta", fechaHasta.toString());
+        
+        return resultado;
+    }
+
+    @Override
+    public List<Map<String, Object>> obtenerTopClientesPorMonto(int top, LocalDateTime desde, LocalDateTime hasta) {
+        // Por defecto: últimos 1 mes si no se especifica
+        final LocalDateTime fechaDesde = (desde != null) ? desde : LocalDateTime.now().minusMonths(1);
+        final LocalDateTime fechaHasta = (hasta != null) ? hasta : LocalDateTime.now();
+        
+        // Obtener todos los pedidos confirmados o entregados (no devoluciones)
+        List<Pedido> pedidos = pedidoRepository.findAll().stream()
+                .filter(p -> (p.getEstado() == EstadoPedido.CONFIRMADO || p.getEstado() == EstadoPedido.ENTREGADO))
+                .filter(p -> p.getTipo() != TipoDocumento.DEVOLUCION)
+                .filter(p -> {
+                    if (fechaDesde != null && p.getFecha().isBefore(fechaDesde)) return false;
+                    if (fechaHasta != null && p.getFecha().isAfter(fechaHasta)) return false;
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        // Agrupar por cliente y sumar montos
+        Map<Long, Double> montoPorCliente = new HashMap<>();
+        Map<Long, String> nombreCliente = new HashMap<>();
+        
+        for (Pedido pedido : pedidos) {
+            Long clienteId = pedido.getUsuario() != null ? pedido.getUsuario().getId() : pedido.getClienteId();
+            if (clienteId != null) {
+                double totalPedido = pedido.getTotal() != null ? pedido.getTotal() : 0.0;
+                montoPorCliente.put(clienteId, montoPorCliente.getOrDefault(clienteId, 0.0) + totalPedido);
+                
+                // Guardar el nombre del cliente
+                if (pedido.getUsuario() != null) {
+                    nombreCliente.put(clienteId, pedido.getUsuario().getNombreRazonSocial());
+                }
+            }
+        }
+        
+        // Ordenar por monto descendente y tomar los top
+        List<Map<String, Object>> topClientes = montoPorCliente.entrySet().stream()
+                .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
+                .limit(top)
+                .map(entry -> {
+                    Map<String, Object> cliente = new HashMap<>();
+                    cliente.put("clienteId", entry.getKey());
+                    cliente.put("montoTotal", entry.getValue());
+                    cliente.put("nombreCliente", nombreCliente.getOrDefault(entry.getKey(), "Cliente #" + entry.getKey()));
+                    return cliente;
+                })
+                .collect(Collectors.toList());
+        
+        return topClientes;
+    }
+
+    @Override
+    public Map<String, Object> obtenerClientesSinCompras(LocalDateTime desde, LocalDateTime hasta) {
+        // Por defecto: últimos 3 meses si no se especifica
+        final LocalDateTime fechaDesde = (desde != null) ? desde : LocalDateTime.now().minusMonths(3);
+        final LocalDateTime fechaHasta = (hasta != null) ? hasta : LocalDateTime.now();
+        
+        // Obtener todos los clientes activos
+        List<Usuario> todosClientes = usuarioRepository.findByTipoUsuario(TipoUsuario.CLIENTE)
+                .stream()
+                .filter(u -> u.getActivo() != null && u.getActivo())
+                .collect(Collectors.toList());
+        
+        // Obtener todos los pedidos confirmados o entregados (no devoluciones) en el período
+        List<Pedido> pedidosEnPeriodo = pedidoRepository.findAll().stream()
+                .filter(p -> (p.getEstado() == EstadoPedido.CONFIRMADO || p.getEstado() == EstadoPedido.ENTREGADO))
+                .filter(p -> p.getTipo() != TipoDocumento.DEVOLUCION)
+                .filter(p -> {
+                    if (fechaDesde != null && p.getFecha().isBefore(fechaDesde)) return false;
+                    if (fechaHasta != null && p.getFecha().isAfter(fechaHasta)) return false;
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        // Obtener IDs de clientes que SÍ compraron en el período
+        java.util.Set<Long> clientesQueCompraron = pedidosEnPeriodo.stream()
+                .map(p -> p.getUsuario() != null ? p.getUsuario().getId() : p.getClienteId())
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        
+        // Filtrar clientes que NO compraron en el período
+        List<Map<String, Object>> clientesSinCompras = todosClientes.stream()
+                .filter(cliente -> !clientesQueCompraron.contains(cliente.getId()))
+                .map(cliente -> {
+                    Map<String, Object> clienteInfo = new HashMap<>();
+                    clienteInfo.put("clienteId", cliente.getId());
+                    clienteInfo.put("nombreCliente", cliente.getNombreRazonSocial());
+                    clienteInfo.put("email", cliente.getEmail());
+                    clienteInfo.put("cuit", cliente.getCuit());
+                    return clienteInfo;
+                })
+                .collect(Collectors.toList());
+        
+        Map<String, Object> resultado = new HashMap<>();
+        resultado.put("clientesSinCompras", clientesSinCompras);
+        resultado.put("totalClientes", todosClientes.size());
+        resultado.put("totalCompraron", clientesQueCompraron.size());
+        resultado.put("totalSinCompras", clientesSinCompras.size());
+        resultado.put("desde", fechaDesde.toString());
+        resultado.put("hasta", fechaHasta.toString());
+        
+        return resultado;
+    }
+
+    @Override
+    public Map<String, Object> obtenerUltimaCompraCliente(Long clienteId) {
+        // Obtener todos los pedidos del cliente (confirmados o entregados, no devoluciones)
+        List<Pedido> pedidosCliente = pedidoRepository.findAll().stream()
+                .filter(p -> {
+                    Long pedidoClienteId = p.getUsuario() != null ? p.getUsuario().getId() : p.getClienteId();
+                    return pedidoClienteId != null && pedidoClienteId.equals(clienteId);
+                })
+                .filter(p -> (p.getEstado() == EstadoPedido.CONFIRMADO || p.getEstado() == EstadoPedido.ENTREGADO))
+                .filter(p -> p.getTipo() != TipoDocumento.DEVOLUCION)
+                .sorted((p1, p2) -> p2.getFecha().compareTo(p1.getFecha())) // Más reciente primero
+                .collect(Collectors.toList());
+        
+        Map<String, Object> resultado = new HashMap<>();
+        
+        if (pedidosCliente.isEmpty()) {
+            resultado.put("tieneCompras", false);
+            resultado.put("mensaje", "Este cliente no ha realizado ninguna compra");
+        } else {
+            Pedido ultimaCompra = pedidosCliente.get(0);
+            resultado.put("tieneCompras", true);
+            resultado.put("ultimaCompraFecha", ultimaCompra.getFecha().toString());
+            resultado.put("ultimaCompraTotal", ultimaCompra.getTotal() != null ? ultimaCompra.getTotal() : 0.0);
+            resultado.put("ultimaCompraEstado", ultimaCompra.getEstado().toString());
+            resultado.put("ultimaCompraId", ultimaCompra.getId());
+        }
         
         return resultado;
     }

@@ -1,6 +1,6 @@
 <div class="dashboards-container">
   <!-- Header negro con logo y navegación -->
-  <div class="dashboards-header">
+  <div class="catalog-header">
     <div class="header-left">
       <div class="logo" (click)="goToCatalog()">
         <div class="logo-symbol">
@@ -41,9 +41,11 @@
   <div class="dashboards-content">
     <h1 class="page-title">📊 Métricas del Negocio</h1>
     
-    <!-- Gráfico de torta: % Vendido sobre Stock Histórico (últimos 3 meses) -->
-    <div class="chart-section">
-      <div class="chart-card">
+    <!-- Fila de gráficos: % Vendido y Total Facturado -->
+    <div class="charts-row">
+      <!-- Gráfico de torta: % Vendido sobre Stock Histórico -->
+      <div class="chart-section half-width">
+        <div class="chart-card">
         <div class="chart-header">
           <h3>% Vendido sobre Stock Histórico</h3>
           <div class="period-selector">
@@ -96,87 +98,64 @@
         <div *ngIf="!loadingChart && !chartData" class="error-metric">
           Error al cargar el gráfico
         </div>
-      </div>
-    </div>
-
-    <!-- Top Artículos Más Vendidos - Gráfico de Barras -->
-    <div class="chart-section">
-      <div class="chart-card">
-        <h3>Top Artículos Más Vendidos</h3>
-        <div *ngIf="loadingTopArticulos" class="loading-metric">
-          Cargando...
         </div>
-        <div *ngIf="!loadingTopArticulos && topArticulosData && topArticulosData.length > 0" class="bar-chart-container">
-          <div class="vertical-bar-chart">
-            <div class="y-axis">
-              <div *ngFor="let tick of yAxisTicks" class="y-tick">
-                <span class="tick-value">{{ tick }}</span>
-                <span class="tick-line"></span>
-              </div>
+      </div>
+
+      <!-- Gráfico de Total Facturado -->
+      <div class="chart-section half-width">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Total Facturado</h3>
+            <div class="period-selector">
+              <label for="periodSelectFacturacion">Período:</label>
+              <select id="periodSelectFacturacion" [(ngModel)]="selectedPeriodFacturacion" (change)="onPeriodFacturacionChange()" class="period-dropdown">
+                <option [value]="1">1 mes</option>
+                <option [value]="3">3 meses</option>
+                <option [value]="6">6 meses</option>
+                <option [value]="9">9 meses</option>
+                <option [value]="12">12 meses</option>
+              </select>
             </div>
-            <div class="bars-container">
-              <div *ngFor="let item of topArticulosData; let i = index" class="bar-item-vertical">
-                <div class="bar-wrapper-vertical">
-                  <div 
-                    class="bar-fill-vertical clickable-bar" 
-                    [style.height.%]="getBarHeight(item.cantidadVendida)"
-                    [class.bar-top1]="i === 0"
-                    [class.bar-top2]="i === 1"
-                    [class.bar-top3]="i === 2"
-                    [class.bar-other]="i > 2"
-                    [class.bar-selected]="productoSeleccionado === item.productoId"
-                    (click)="seleccionarProducto(item.productoId)">
-                    <span class="bar-value-vertical">{{ item.cantidadVendida }}</span>
+          </div>
+          <div *ngIf="loadingTotalFacturado" class="loading-metric">
+            Cargando...
+          </div>
+          <div *ngIf="!loadingTotalFacturado && totalFacturadoData" class="total-facturado-container">
+            <div class="total-facturado-value">
+              <span class="currency-symbol">$</span>
+              <span class="amount">{{ totalFacturadoData.totalFacturado | number:'1.2-2' }}</span>
+            </div>
+            <div class="total-facturado-info">
+              <span class="info-text">{{ totalFacturadoData.cantidadPedidos }} pedidos</span>
+            </div>
+            
+            <!-- Gráfico de barras horizontal: Top 3 clientes -->
+            <div *ngIf="topClientesData && topClientesData.length > 0" class="top-clientes-chart">
+              <div class="horizontal-bars">
+                <div *ngFor="let cliente of topClientesData; let i = index" class="horizontal-bar-item">
+                  <div class="bar-label-horizontal">
+                    <span class="cliente-rank">{{ i + 1 }}.</span>
+                    <span class="cliente-name">{{ cliente.nombreCliente }}</span>
+                  </div>
+                  <div class="bar-container-horizontal">
+                    <div 
+                      class="bar-fill-horizontal" 
+                      [style.width.%]="getClienteBarWidth(cliente.montoTotal)"
+                      [class.bar-client1]="i === 0"
+                      [class.bar-client2]="i === 1"
+                      [class.bar-client3]="i === 2">
+                      <span class="bar-value-horizontal">${{ cliente.montoTotal | number:'1.2-2' }}</span>
+                    </div>
                   </div>
                 </div>
-                <div class="bar-label-vertical">
-                  <span class="bar-rank-vertical">{{ i + 1 }}.</span>
-                  <span class="bar-name-vertical clickable-name" (click)="seleccionarProducto(item.productoId)">{{ item.nombre }}</span>
-                </div>
               </div>
             </div>
-          </div>
-        </div>
-        <div *ngIf="!loadingTopArticulos && (!topArticulosData || topArticulosData.length === 0)" class="no-data">
-          No hay datos de artículos vendidos en este período
-        </div>
-        
-        <!-- Detalles del producto seleccionado -->
-        <div *ngIf="productoSeleccionado && detallesProducto" class="producto-detalles">
-          <div class="detalles-header">
-            <h4>{{ detallesProducto.nombreProducto }}</h4>
-            <button class="close-details" (click)="cerrarDetallesProducto()">✕</button>
-          </div>
-          
-          <div class="detalles-stats">
-            <div class="stat-item">
-              <span class="stat-label">% Vendido sobre Stock Histórico:</span>
-              <span class="stat-value highlight">{{ detallesProducto.porcentajeVendido }}%</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Stock Histórico Total:</span>
-              <span class="stat-value">{{ detallesProducto.stockHistoricoTotal }} unidades</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Ventas Totales:</span>
-              <span class="stat-value">{{ detallesProducto.ventasTotales }} unidades</span>
+            <div *ngIf="!loadingTotalFacturado && (!topClientesData || topClientesData.length === 0)" class="no-clientes-data">
+              No hay datos de clientes en este período
             </div>
           </div>
-          
-          <div class="variantes-detalle">
-            <h5>Ventas por Variante:</h5>
-            <div class="variantes-list">
-              <div *ngFor="let variante of detallesProducto.variantes" class="variante-item">
-                <div class="variante-info">
-                  <span class="variante-sku">{{ variante.sku }}</span>
-                  <span class="variante-attr">{{ variante.color }} - Talle {{ variante.talle }}</span>
-                </div>
-                <div class="variante-stats">
-                  <span class="variante-venta">{{ variante.cantidadVendida }} vendidas</span>
-                  <span class="variante-stock">Stock histórico: {{ variante.stockHistorico }}</span>
-                </div>
-              </div>
-            </div>
+          <div *ngIf="!loadingTotalFacturado && !totalFacturadoData" class="no-data">
+            No hay datos de facturación en este período
           </div>
         </div>
       </div>
@@ -184,6 +163,144 @@
 
     <!-- Métricas expandibles -->
     <div class="metrics-actions">
+      <!-- Top Artículos Más Vendidos - Gráfico de Barras (Expandible) -->
+      <button 
+        class="metric-action-btn" 
+        (click)="toggleTopArticulos()"
+        [class.expanded]="topArticulosExpandido">
+        <span>Top Artículos Más Vendidos</span>
+        <span class="icon">{{ topArticulosExpandido ? '−' : '+' }}</span>
+      </button>
+      
+      <div *ngIf="topArticulosExpandido" class="metric-content">
+        <div class="chart-section">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Top Artículos Más Vendidos</h3>
+              <div class="period-selector">
+                <label for="periodSelectTopArticulos">Período:</label>
+                <select id="periodSelectTopArticulos" [(ngModel)]="selectedPeriodTopArticulos" (change)="onPeriodTopArticulosChange()" class="period-dropdown">
+                  <option [value]="0.033">1 día</option>
+                  <option [value]="1">1 mes</option>
+                  <option [value]="3">3 meses</option>
+                  <option [value]="6">6 meses</option>
+                  <option [value]="9">9 meses</option>
+                  <option [value]="12">12 meses</option>
+                </select>
+              </div>
+            </div>
+            <div *ngIf="loadingTopArticulos" class="loading-metric">
+              Cargando...
+            </div>
+            <div *ngIf="!loadingTopArticulos && topArticulosData && topArticulosData.length > 0" class="bar-chart-container">
+              <div class="vertical-bar-chart">
+                <div class="y-axis">
+                  <div *ngFor="let tick of yAxisTicks" class="y-tick">
+                    <span class="tick-value">{{ tick }}</span>
+                    <span class="tick-line"></span>
+                  </div>
+                </div>
+                <div class="bars-container">
+                  <div *ngFor="let item of topArticulosData; let i = index" class="bar-item-vertical">
+                    <div class="bar-wrapper-vertical">
+                      <div 
+                        class="bar-fill-vertical clickable-bar" 
+                        [style.height.%]="getBarHeight(item.cantidadVendida)"
+                        [class.bar-top1]="i === 0"
+                        [class.bar-top2]="i === 1"
+                        [class.bar-top3]="i === 2"
+                        [class.bar-other]="i > 2"
+                        [class.bar-selected]="productoSeleccionado === item.productoId"
+                        (click)="seleccionarProducto(item.productoId)">
+                        <span class="bar-value-vertical">{{ item.cantidadVendida }}</span>
+                      </div>
+                    </div>
+                    <div class="bar-label-vertical">
+                      <span class="bar-rank-vertical">{{ i + 1 }}.</span>
+                      <span class="bar-name-vertical clickable-name" (click)="seleccionarProducto(item.productoId)">{{ item.nombre }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="!loadingTopArticulos && (!topArticulosData || topArticulosData.length === 0)" class="no-data">
+              No hay datos de artículos vendidos en este período
+            </div>
+            
+            <!-- Botón para ver todos los artículos -->
+            <div class="ver-todos-articulos-section">
+              <button 
+                class="btn-ver-todos" 
+                (click)="toggleTodosArticulos()"
+                [class.expanded]="mostrarTodosArticulos">
+                <span>{{ mostrarTodosArticulos ? 'Ocultar todos los artículos' : 'Ver todos los artículos' }}</span>
+                <span class="icon">{{ mostrarTodosArticulos ? '−' : '+' }}</span>
+              </button>
+              
+              <div *ngIf="mostrarTodosArticulos" class="todos-articulos-dropdown">
+                <div *ngIf="loadingTodosArticulos" class="loading-metric">
+                  Cargando todos los artículos...
+                </div>
+                <div *ngIf="!loadingTodosArticulos && todosArticulosData && todosArticulosData.length > 0" class="articulos-select-container">
+                  <label for="articuloSelect">Seleccionar artículo:</label>
+                  <select 
+                    id="articuloSelect" 
+                    class="articulo-select"
+                    size="8"
+                    (change)="onArticuloSeleccionado($event)">
+                    <option *ngFor="let articulo of todosArticulosData" [value]="articulo.productoId">
+                      {{ articulo.nombre }} ({{ articulo.cantidadVendida }} vendidas)
+                    </option>
+                  </select>
+                </div>
+                <div *ngIf="!loadingTodosArticulos && (!todosArticulosData || todosArticulosData.length === 0)" class="no-data">
+                  No hay artículos en este período
+                </div>
+              </div>
+            </div>
+            
+            <!-- Detalles del producto seleccionado -->
+            <div *ngIf="productoSeleccionado && detallesProducto" class="producto-detalles">
+              <div class="detalles-header">
+                <h4>{{ detallesProducto.nombreProducto }}</h4>
+                <button class="close-details" (click)="cerrarDetallesProducto()">✕</button>
+              </div>
+              
+              <div class="detalles-stats">
+                <div class="stat-item">
+                  <span class="stat-label">% Vendido sobre Stock Histórico:</span>
+                  <span class="stat-value highlight">{{ detallesProducto.porcentajeVendido }}%</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Stock Histórico Total:</span>
+                  <span class="stat-value">{{ detallesProducto.stockHistoricoTotal }} unidades</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Ventas Totales:</span>
+                  <span class="stat-value">{{ detallesProducto.ventasTotales }} unidades</span>
+                </div>
+              </div>
+              
+              <div class="variantes-detalle">
+                <h5>Ventas por Variante:</h5>
+                <div class="variantes-list">
+                  <div *ngFor="let variante of detallesProducto.variantes" class="variante-item">
+                    <div class="variante-info">
+                      <span class="variante-sku">{{ variante.sku }}</span>
+                      <span class="variante-attr">{{ variante.color }} - Talle {{ variante.talle }}</span>
+                    </div>
+                    <div class="variante-stats">
+                      <span class="variante-venta">{{ variante.cantidadVendida }} vendidas</span>
+                      <span class="variante-stock">Stock histórico: {{ variante.stockHistorico }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <button 
         class="metric-action-btn" 
         (click)="toggleMetric('ordenesCanceladas')"
@@ -193,6 +310,20 @@
       </button>
       
       <div *ngIf="metricasExpandidas.ordenesCanceladas" class="metric-content">
+        <div class="chart-header">
+          <h3>Órdenes Canceladas</h3>
+          <div class="period-selector">
+            <label for="periodSelectOrdenesCanceladas">Período:</label>
+            <select id="periodSelectOrdenesCanceladas" [(ngModel)]="selectedPeriodOrdenesCanceladas" (change)="onPeriodOrdenesCanceladasChange()" class="period-dropdown">
+              <option [value]="0.033">1 día</option>
+              <option [value]="1">1 mes</option>
+              <option [value]="3">3 meses</option>
+              <option [value]="6">6 meses</option>
+              <option [value]="9">9 meses</option>
+              <option [value]="12">12 meses</option>
+            </select>
+          </div>
+        </div>
         <div *ngIf="loadingMetricas.ordenesCanceladas" class="loading-metric">Cargando...</div>
         <div *ngIf="!loadingMetricas.ordenesCanceladas && metricasData.ordenesCanceladas !== null" class="metric-value-large">
           {{ metricasData.ordenesCanceladas }}
@@ -208,6 +339,20 @@
       </button>
       
       <div *ngIf="metricasExpandidas.medioPago" class="metric-content">
+        <div class="chart-header">
+          <h3>Medio de Pago Más Usado</h3>
+          <div class="period-selector">
+            <label for="periodSelectMedioPago">Período:</label>
+            <select id="periodSelectMedioPago" [(ngModel)]="selectedPeriodMedioPago" (change)="onPeriodMedioPagoChange()" class="period-dropdown">
+              <option [value]="0.033">1 día</option>
+              <option [value]="1">1 mes</option>
+              <option [value]="3">3 meses</option>
+              <option [value]="6">6 meses</option>
+              <option [value]="9">9 meses</option>
+              <option [value]="12">12 meses</option>
+            </select>
+          </div>
+        </div>
         <div *ngIf="loadingMetricas.medioPago" class="loading-metric">Cargando...</div>
         <div *ngIf="!loadingMetricas.medioPago && metricasData.medioPago" class="metric-info">
           <p class="metric-value-large">{{ metricasData.medioPago.metodo }}</p>
@@ -224,12 +369,124 @@
       </button>
       
       <div *ngIf="metricasExpandidas.devoluciones" class="metric-content">
+        <div class="chart-header">
+          <h3>Devoluciones</h3>
+          <div class="period-selector">
+            <label for="periodSelectDevoluciones">Período:</label>
+            <select id="periodSelectDevoluciones" [(ngModel)]="selectedPeriodDevoluciones" (change)="onPeriodDevolucionesChange()" class="period-dropdown">
+              <option [value]="0.033">1 día</option>
+              <option [value]="1">1 mes</option>
+              <option [value]="3">3 meses</option>
+              <option [value]="6">6 meses</option>
+              <option [value]="9">9 meses</option>
+              <option [value]="12">12 meses</option>
+            </select>
+          </div>
+        </div>
         <div *ngIf="loadingMetricas.devoluciones" class="loading-metric">Cargando...</div>
         <div *ngIf="!loadingMetricas.devoluciones && metricasData.devoluciones" class="metric-info">
           <p><strong>Aptas:</strong> {{ metricasData.devoluciones.aptas }}</p>
           <p><strong>Scrap:</strong> {{ metricasData.devoluciones.scrap }}</p>
           <p><strong>Pendientes:</strong> {{ metricasData.devoluciones.pendientes }}</p>
           <p><strong>Total:</strong> {{ metricasData.devoluciones.total }}</p>
+        </div>
+      </div>
+
+      <button 
+        class="metric-action-btn" 
+        (click)="toggleMetric('clientesSinCompras')"
+        [class.expanded]="metricasExpandidas.clientesSinCompras">
+        <span>Clientes que no compraron</span>
+        <span class="icon">{{ metricasExpandidas.clientesSinCompras ? '−' : '+' }}</span>
+      </button>
+      
+      <div *ngIf="metricasExpandidas.clientesSinCompras" class="metric-content">
+        <div class="chart-header">
+          <h3>Clientes que no compraron</h3>
+          <div class="period-selector">
+            <label for="periodSelectClientesSinCompras">Período:</label>
+            <select id="periodSelectClientesSinCompras" [(ngModel)]="selectedPeriodClientesSinCompras" (change)="onPeriodClientesSinComprasChange()" class="period-dropdown">
+              <option [value]="0.033">1 día</option>
+              <option [value]="1">1 mes</option>
+              <option [value]="3">3 meses</option>
+              <option [value]="6">6 meses</option>
+              <option [value]="9">9 meses</option>
+              <option [value]="12">12 meses</option>
+            </select>
+          </div>
+        </div>
+        
+        <div *ngIf="loadingMetricas.clientesSinCompras" class="loading-metric">
+          Cargando...
+        </div>
+        
+        <div *ngIf="!loadingMetricas.clientesSinCompras && metricasData.clientesSinCompras">
+          <div *ngIf="metricasData.clientesSinCompras.totalSinCompras === 0" class="no-data-message">
+            <p>✅ Todos los clientes han realizado compras en este período</p>
+            <p class="metric-subtitle">Total de clientes: {{ metricasData.clientesSinCompras.totalClientes }}</p>
+          </div>
+          
+          <div *ngIf="metricasData.clientesSinCompras.totalSinCompras > 0" class="clientes-sin-compras-container">
+            <div class="metric-info">
+              <p><strong>Clientes sin compras:</strong> {{ metricasData.clientesSinCompras.totalSinCompras }}</p>
+              <p class="metric-subtitle">Total de clientes: {{ metricasData.clientesSinCompras.totalClientes }}</p>
+            </div>
+            
+            <div class="clientes-select-container">
+              <label for="clienteSelect">Seleccionar cliente:</label>
+              <select 
+                id="clienteSelect" 
+                class="cliente-select"
+                [attr.size]="clientesSelectSize"
+                (change)="onClienteSeleccionado($event)">
+                <option *ngFor="let cliente of metricasData.clientesSinCompras.clientesSinCompras" [value]="cliente.clienteId">
+                  {{ cliente.nombreCliente }} ({{ cliente.email }})
+                </option>
+              </select>
+            </div>
+            
+            <!-- Detalles del cliente seleccionado -->
+            <div *ngIf="clienteSeleccionado && ultimaCompraData" class="cliente-detalles">
+              <div class="detalles-header">
+                <h4>{{ clienteSeleccionado.nombreCliente }}</h4>
+                <button class="close-details" (click)="cerrarDetallesCliente()">✕</button>
+              </div>
+              
+              <div class="detalles-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Email:</span>
+                  <span class="stat-value">{{ clienteSeleccionado.email }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">CUIT:</span>
+                  <span class="stat-value">{{ clienteSeleccionado.cuit }}</span>
+                </div>
+                
+                <div *ngIf="loadingUltimaCompra" class="loading-metric">
+                  Cargando última compra...
+                </div>
+                
+                <div *ngIf="!loadingUltimaCompra && ultimaCompraData.tieneCompras" class="ultima-compra-info">
+                  <div class="stat-item">
+                    <span class="stat-label">Última compra:</span>
+                    <span class="stat-value highlight">{{ ultimaCompraData.ultimaCompraFecha | date:'dd/MM/yyyy HH:mm' }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Monto:</span>
+                    <span class="stat-value">${{ ultimaCompraData.ultimaCompraTotal | number:'1.2-2' }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Estado:</span>
+                    <span class="stat-value">{{ ultimaCompraData.ultimaCompraEstado }}</span>
+                  </div>
+                </div>
+                
+                <div *ngIf="!loadingUltimaCompra && !ultimaCompraData.tieneCompras" class="no-compra-message">
+                  <p>{{ ultimaCompraData.mensaje }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

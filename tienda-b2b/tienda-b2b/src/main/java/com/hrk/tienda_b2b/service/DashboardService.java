@@ -22,5 +22,17 @@ public interface DashboardService {
     // Detalles de un producto específico (stock histórico y ventas por variante)
     Map<String, Object> obtenerDetallesProducto(Long productoId, LocalDateTime desde, LocalDateTime hasta);
     
+    // Total facturado en un período
+    Map<String, Object> calcularTotalFacturado(LocalDateTime desde, LocalDateTime hasta);
+    
+    // Top clientes por monto facturado
+    List<Map<String, Object>> obtenerTopClientesPorMonto(int top, LocalDateTime desde, LocalDateTime hasta);
+    
+    // Clientes que no compraron en un período
+    Map<String, Object> obtenerClientesSinCompras(LocalDateTime desde, LocalDateTime hasta);
+    
+    // Obtener última compra de un cliente
+    Map<String, Object> obtenerUltimaCompraCliente(Long clienteId);
+    
 }
 

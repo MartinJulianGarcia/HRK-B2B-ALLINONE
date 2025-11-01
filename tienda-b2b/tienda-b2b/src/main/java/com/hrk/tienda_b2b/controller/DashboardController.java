@@ -79,5 +79,45 @@ public class DashboardController {
         
         return ResponseEntity.ok(resultado);
     }
+
+    @GetMapping("/total-facturado")
+    public ResponseEntity<Map<String, Object>> calcularTotalFacturado(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        
+        Map<String, Object> resultado = dashboardService.calcularTotalFacturado(desde, hasta);
+        
+        return ResponseEntity.ok(resultado);
+    }
+
+    @GetMapping("/top-clientes-monto")
+    public ResponseEntity<List<Map<String, Object>>> obtenerTopClientesPorMonto(
+            @RequestParam(defaultValue = "3") int top,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        
+        List<Map<String, Object>> resultado = dashboardService.obtenerTopClientesPorMonto(top, desde, hasta);
+        
+        return ResponseEntity.ok(resultado);
+    }
+
+    @GetMapping("/clientes-sin-compras")
+    public ResponseEntity<Map<String, Object>> obtenerClientesSinCompras(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        
+        Map<String, Object> resultado = dashboardService.obtenerClientesSinCompras(desde, hasta);
+        
+        return ResponseEntity.ok(resultado);
+    }
+
+    @GetMapping("/ultima-compra-cliente/{clienteId}")
+    public ResponseEntity<Map<String, Object>> obtenerUltimaCompraCliente(
+            @PathVariable Long clienteId) {
+        
+        Map<String, Object> resultado = dashboardService.obtenerUltimaCompraCliente(clienteId);
+        
+        return ResponseEntity.ok(resultado);
+    }
 }
 
