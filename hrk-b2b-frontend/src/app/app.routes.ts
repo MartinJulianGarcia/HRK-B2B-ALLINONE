@@ -12,6 +12,7 @@ import { OrderDetailPageComponent } from './app/features/orders/order-detail-pag
 import { DevolucionPageComponent } from './app/features/orders/devolucion-page/devolucion-page.component';
 import { AddProductPageComponent } from './app/features/admin/add-product-page/add-product-page.component';
 import { EditProductPageComponent } from './app/features/admin/edit-product-page/edit-product-page.component';
+import { DashboardsPageComponent } from './app/features/dashboards/dashboards-page/dashboards-page.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -26,5 +27,6 @@ export const routes: Routes = [
   { path: 'order-detail/:id', component: OrderDetailPageComponent },
   { path: 'devolucion', component: DevolucionPageComponent },
   { path: 'add-product', component: AddProductPageComponent },
-  { path: 'edit-product/:id', component: EditProductPageComponent }
+  { path: 'edit-product/:id', component: EditProductPageComponent },
+  { path: 'dashboards', component: DashboardsPageComponent }
 ];

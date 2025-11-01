@@ -33,6 +33,10 @@
         <button class="btn btn-secondary" (click)="viewOrderHistory()" *ngIf="!editando">
           Ver Historial de Pedidos
         </button>
+        <button class="btn btn-dashboard" (click)="goToDashboards()" *ngIf="!editando && authService.isAdmin()">
+          <span class="btn-text">Ver métricas del negocio</span>
+          <span class="icon-chart">📊</span>
+        </button>
         <button class="btn btn-outline" (click)="logout()" *ngIf="!editando">
           Cerrar Sesión
         </button>
@@ -146,6 +150,40 @@
           </div>
         </div>
       </ng-container>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de código de validación para cambio a ADMIN -->
+<div class="modal-overlay" *ngIf="mostrarModalCodigo" (click)="cerrarModalCodigo()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Código de Validación</h3>
+      <button class="modal-close" (click)="cerrarModalCodigo()" title="Cerrar">×</button>
+    </div>
+    <div class="modal-body">
+      <p>Para cambiar tu rol a <strong>ADMIN</strong>, ingresa el código de validación:</p>
+      <div class="form-group">
+        <input 
+          type="text" 
+          class="form-control" 
+          [(ngModel)]="codigoValidacion"
+          placeholder="Ingresa el código"
+          (keyup.enter)="validarYCambiarRol()"
+          autofocus
+        >
+        <div *ngIf="errorCodigo" class="error-message">
+          {{ errorCodigo }}
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" (click)="validarYCambiarRol()">
+        Validar
+      </button>
+      <button class="btn btn-outline" (click)="cerrarModalCodigo()">
+        Cancelar
+      </button>
     </div>
   </div>
 </div>

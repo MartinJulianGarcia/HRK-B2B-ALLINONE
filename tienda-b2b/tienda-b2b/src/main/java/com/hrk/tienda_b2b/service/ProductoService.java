@@ -8,10 +8,12 @@ import com.hrk.tienda_b2b.model.Producto;
 import com.hrk.tienda_b2b.model.ProductoVariante;
 import com.hrk.tienda_b2b.model.TipoMovimiento;
 import com.hrk.tienda_b2b.model.TipoProducto;
+import com.hrk.tienda_b2b.model.StockHistorico;
 import com.hrk.tienda_b2b.repository.DetallePedidoRepository;
 import com.hrk.tienda_b2b.repository.MovimientoStockRepository;
 import com.hrk.tienda_b2b.repository.ProductoRepository;
 import com.hrk.tienda_b2b.repository.ProductoVarianteRepository;
+import com.hrk.tienda_b2b.repository.StockHistoricoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class ProductoService {
     private final ProductoVarianteRepository productoVarianteRepository;
     private final MovimientoStockRepository movimientoStockRepository;
     private final DetallePedidoRepository detallePedidoRepository;
+    private final StockHistoricoRepository stockHistoricoRepository;
 
     public List<Producto> obtenerTodos() {
         return obtenerTodos(false);
@@ -204,6 +207,13 @@ public class ProductoService {
         
         // 5. Guardar el producto con las variantes
         producto = productoRepository.save(producto);
+        
+        // 6. Registrar stock histórico inicial para todas las variantes
+        for (ProductoVariante variante : producto.getVariantes()) {
+            if (variante.getStockDisponible() > 0) {
+                registrarStockHistoricoInicial(variante, variante.getStockDisponible());
+            }
+        }
         
         System.out.println("✅ [SERVICE] Producto guardado con " + producto.getVariantes().size() + " variantes");
         
@@ -466,6 +476,21 @@ public class ProductoService {
                     }
                 }
             }
+            
+            // Guardar para tener los IDs antes de registrar stock histórico
+            producto = productoRepository.save(producto);
+            
+            // Registrar stock histórico inicial para las nuevas variantes
+            for (ProductoVariante variante : producto.getVariantes()) {
+                // Solo registrar si es una variante nueva (verificar por fecha de creación o por lógica)
+                // Por simplicidad, registramos si tiene stock > 0 y no tiene registros históricos previos
+                if (variante.getStockDisponible() > 0) {
+                    List<StockHistorico> historicos = stockHistoricoRepository.findByVarianteOrderByFechaAsc(variante);
+                    if (historicos.isEmpty()) {
+                        registrarStockHistoricoInicial(variante, variante.getStockDisponible());
+                    }
+                }
+            }
         } else if (request.getStockPorVariante() != null && !request.getStockPorVariante().isEmpty()) {
             // Actualizar solo el stock de variantes existentes y registrar movimientos
             System.out.println("🔵 [SERVICE] Actualizando stock de variantes existentes y registrando movimientos");
@@ -519,6 +544,13 @@ public class ProductoService {
                         
                         movimientoStockRepository.save(movimiento);
                         System.out.println("✅ [SERVICE] Movimiento registrado: " + tipoMovimiento + " - " + cantidadMovimiento + " unidades");
+                        
+                        // Registrar en stock histórico
+                        if (diferencia > 0) {
+                            registrarStockHistoricoAjuste(variante, diferencia, StockHistorico.TipoMovimientoStock.AJUSTE_SUMA);
+                        } else {
+                            registrarStockHistoricoAjuste(variante, Math.abs(diferencia), StockHistorico.TipoMovimientoStock.AJUSTE_RESTA);
+                        }
                     }
                     
                     // Actualizar el stock de la variante (se guardará al guardar el producto por cascade)
@@ -562,5 +594,61 @@ public class ProductoService {
         }
         
         return producto;
+    }
+
+    /**
+     * Registra el stock histórico inicial cuando se crea una variante
+     */
+    private void registrarStockHistoricoInicial(ProductoVariante variante, Integer cantidad) {
+        StockHistorico historico = StockHistorico.builder()
+                .variante(variante)
+                .cantidad(cantidad)
+                .stockAcumulado(cantidad)
+                .fecha(LocalDateTime.now())
+                .motivo("Creación inicial de variante")
+                .tipo(StockHistorico.TipoMovimientoStock.ENTRADA_INICIAL)
+                .build();
+        
+        stockHistoricoRepository.save(historico);
+        System.out.println("✅ [STOCK HISTORICO] Registrado stock inicial: " + variante.getSku() + " - " + cantidad + " unidades");
+    }
+
+    /**
+     * Registra un ajuste de stock histórico (suma o resta)
+     */
+    private void registrarStockHistoricoAjuste(ProductoVariante variante, Integer cantidad, StockHistorico.TipoMovimientoStock tipo) {
+        // Obtener el stock acumulado anterior
+        StockHistorico ultimoHistorico = stockHistoricoRepository.findFirstByVarianteOrderByFechaDesc(variante);
+        Integer stockAnterior = (ultimoHistorico != null) ? ultimoHistorico.getStockAcumulado() : 0;
+        
+        // Si no hay historial previo, considerar el stock actual de la variante como base
+        if (ultimoHistorico == null && variante.getStockDisponible() != null) {
+            stockAnterior = variante.getStockDisponible();
+        }
+        
+        // Calcular nuevo stock acumulado
+        Integer stockAcumulado;
+        Integer cantidadMovimiento;
+        if (tipo == StockHistorico.TipoMovimientoStock.AJUSTE_SUMA) {
+            stockAcumulado = stockAnterior + cantidad;
+            cantidadMovimiento = cantidad;
+        } else {
+            stockAcumulado = Math.max(0, stockAnterior - cantidad); // No permitir negativo
+            cantidadMovimiento = -cantidad;
+        }
+        
+        StockHistorico historico = StockHistorico.builder()
+                .variante(variante)
+                .cantidad(cantidadMovimiento)
+                .stockAcumulado(stockAcumulado)
+                .fecha(LocalDateTime.now())
+                .motivo("Ajuste manual de stock")
+                .tipo(tipo)
+                .build();
+        
+        stockHistoricoRepository.save(historico);
+        System.out.println("✅ [STOCK HISTORICO] Registrado ajuste: " + variante.getSku() + " - " + 
+                (tipo == StockHistorico.TipoMovimientoStock.AJUSTE_SUMA ? "+" : "-") + cantidad + 
+                " unidades (Stock acumulado: " + stockAcumulado + ")");
     }
 }

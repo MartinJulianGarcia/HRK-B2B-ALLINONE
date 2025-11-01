@@ -22,6 +22,10 @@ export class ProfilePageComponent implements OnInit {
   guardando = false;
   error = '';
   verProductosOcultos = false; // Preferencia para ver productos ocultos (solo admin)
+  mostrarModalCodigo = false; // Controla si se muestra el modal de código
+  codigoValidacion = ''; // Código ingresado por el usuario
+  errorCodigo = ''; // Error del código
+  private readonly CODIGO_ADMIN = 'cascuino'; // Código hardcodeado para cambio a admin
 
   constructor(
     public authService: AuthService,
@@ -133,6 +137,10 @@ export class ProfilePageComponent implements OnInit {
     this.router.navigate(['/orders-history']);
   }
 
+  goToDashboards(): void {
+    this.router.navigate(['/dashboards']);
+  }
+
   toggleVerProductosOcultos(event: any): void {
     this.verProductosOcultos = event.target.checked;
     // Guardar preferencia en localStorage
@@ -144,19 +152,61 @@ export class ProfilePageComponent implements OnInit {
     if (!this.user) return;
     
     const nuevoRol = this.user.tipoUsuario === 'CLIENTE' ? 'ADMIN' : 'CLIENTE';
-    const confirmacion = confirm(`¿Estás seguro que quieres cambiar tu rol a ${nuevoRol}?`);
+    
+    // Si el nuevo rol es ADMIN, pedir código de validación
+    if (nuevoRol === 'ADMIN') {
+      this.mostrarModalCodigo = true;
+      this.codigoValidacion = '';
+      this.errorCodigo = '';
+    } else {
+      // Si es CLIENTE, cambiar directamente
+      const confirmacion = confirm(`¿Estás seguro que quieres cambiar tu rol a ${nuevoRol}?`);
+      
+      if (confirmacion) {
+        this.ejecutarCambioRol(nuevoRol);
+      }
+    }
+  }
+
+  cerrarModalCodigo(): void {
+    this.mostrarModalCodigo = false;
+    this.codigoValidacion = '';
+    this.errorCodigo = '';
+  }
+
+  validarYCambiarRol(): void {
+    if (!this.codigoValidacion || this.codigoValidacion.trim().length === 0) {
+      this.errorCodigo = 'Por favor ingresa el código de validación';
+      return;
+    }
+
+    // Validar código (case-insensitive)
+    if (this.codigoValidacion.trim().toLowerCase() !== this.CODIGO_ADMIN.toLowerCase()) {
+      this.errorCodigo = 'Código incorrecto. Inténtalo de nuevo.';
+      return;
+    }
+
+    // Código correcto, cerrar modal y proceder con el cambio
+    this.cerrarModalCodigo();
+    const confirmacion = confirm('¿Estás seguro que quieres cambiar tu rol a ADMIN?');
     
     if (confirmacion) {
-      this.authService.cambiarRol(this.user.id, nuevoRol).subscribe({
-        next: (usuarioActualizado) => {
-          this.user = usuarioActualizado;
-          alert(`Rol cambiado exitosamente a ${nuevoRol}`);
-        },
-        error: (error) => {
-          console.error('Error al cambiar rol:', error);
-          alert('Error al cambiar el rol. Inténtalo de nuevo.');
-        }
-      });
+      this.ejecutarCambioRol('ADMIN');
     }
+  }
+
+  private ejecutarCambioRol(nuevoRol: 'CLIENTE' | 'ADMIN'): void {
+    if (!this.user) return;
+
+    this.authService.cambiarRol(this.user.id, nuevoRol).subscribe({
+      next: (usuarioActualizado) => {
+        this.user = usuarioActualizado;
+        alert(`Rol cambiado exitosamente a ${nuevoRol}`);
+      },
+      error: (error) => {
+        console.error('Error al cambiar rol:', error);
+        alert('Error al cambiar el rol. Inténtalo de nuevo.');
+      }
+    });
   }
 }
