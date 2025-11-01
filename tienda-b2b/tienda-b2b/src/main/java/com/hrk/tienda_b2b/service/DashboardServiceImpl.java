@@ -64,9 +64,9 @@ public class DashboardServiceImpl implements DashboardService {
                     if (hasta != null && p.getFecha().isAfter(hasta)) return false;
                     return true;
                 })
-                .filter(p -> p.getMetodoPago() != null && !p.getMetodoPago().trim().isEmpty())
+                .filter(p -> p.getMetodoPago() != null)
                 .collect(Collectors.groupingBy(
-                        p -> p.getMetodoPago(),
+                        p -> p.getMetodoPago().toString(), // Convertir enum a String
                         Collectors.counting()
                 ));
         

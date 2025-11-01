@@ -2,6 +2,7 @@ package com.hrk.tienda_b2b.model;
 import java.util.List;
 import java.util.ArrayList;
 import jakarta.persistence.*;
+import jakarta.persistence.Convert;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -30,7 +31,9 @@ public class Pedido {
     private Double total;
 
     // ⭐ NUEVO: Método de pago
-    private String metodoPago;
+    @Column(name = "metodo_pago", nullable = true) // Nullable para compatibilidad con datos existentes
+    @Convert(converter = com.hrk.tienda_b2b.model.converter.MetodoPagoConverter.class)
+    private MetodoPago metodoPago;
 
     // ⭐ NUEVO: Tipo de aprobación para devoluciones (null si no es devolución o no está aprobada)
     @Enumerated(EnumType.STRING)

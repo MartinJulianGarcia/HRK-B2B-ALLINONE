@@ -18,4 +18,11 @@ public interface DetallePedidoRepository extends JpaRepository<DetallePedido, Lo
     
     // Buscar detalles por pedido
     List<DetallePedido> findByPedidoId(Long pedidoId);
+    
+    // Buscar detalles por pedido con JOIN FETCH para evitar lazy loading
+    @Query("SELECT d FROM DetallePedido d " +
+           "LEFT JOIN FETCH d.variante v " +
+           "LEFT JOIN FETCH v.producto p " +
+           "WHERE d.pedido.id = :pedidoId")
+    List<DetallePedido> findByPedidoIdWithRelations(@Param("pedidoId") Long pedidoId);
 }

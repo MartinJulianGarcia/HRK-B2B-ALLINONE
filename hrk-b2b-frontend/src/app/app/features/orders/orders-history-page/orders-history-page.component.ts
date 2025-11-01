@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { OrdersService, Pedido, EstadoPedido, TipoPedido } from '../../../core/orders.service';
 import { AuthService, Usuario } from '../../../core/auth.service';
 import { CartService } from '../../../core/cart.service';
@@ -34,11 +35,15 @@ export class OrdersHistoryPageComponent implements OnInit {
   selectedUser: Usuario | null = null;
   loadingUsers = false;
 
+  private readonly API_URL = 'http://localhost:8081/api';
+
   constructor(
     private ordersService: OrdersService,
     private authService: AuthService,
     private router: Router,
-    private cartService: CartService
+    private route: ActivatedRoute,
+    private cartService: CartService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -74,6 +79,96 @@ export class OrdersHistoryPageComponent implements OnInit {
     }
 
     this.updateCartCount();
+    
+    // Verificar si hay parámetros de retorno de MercadoPago
+    this.route.queryParams.subscribe(params => {
+      if (params['payment_status'] || params['status']) {
+        this.procesarRetornoMercadoPago(params);
+      }
+    });
+  }
+
+  procesarRetornoMercadoPago(params: any): void {
+    const paymentStatus = params['payment_status'] || params['status'];
+    // MercadoPago puede enviar dos preference_id:
+    // 1. El preference_id de MercadoPago (UUID largo)
+    // 2. El external_reference que pusimos (que es el pedidoId)
+    // Priorizamos external_reference si está disponible, sino usamos preference_id
+    let preferenceId = params['external_reference'] || params['preference_id'];
+    
+    if (!preferenceId) {
+      console.warn('🟡 [ORDERS HISTORY] Retorno de MercadoPago sin preference_id ni external_reference');
+      return;
+    }
+    
+    console.log('🔵 [ORDERS HISTORY] Procesando retorno de MercadoPago:', { 
+      paymentStatus, 
+      preferenceId, 
+      external_reference: params['external_reference'],
+      preference_id_mp: params['preference_id']
+    });
+    
+    // Llamar al backend para procesar el retorno y confirmar/cancelar el pedido
+    const token = this.authService.getToken();
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    
+    // Construir la URL con los parámetros
+    // El backend espera el preference_id (que debe ser el pedidoId/external_reference)
+    let url = `${this.API_URL}/mercadopago/procesar-retorno?preference_id=${preferenceId}`;
+    if (paymentStatus) {
+      url += `&payment_status=${paymentStatus}`;
+    }
+    if (params['status']) {
+      url += `&status=${params['status']}`;
+    }
+    
+    this.http.get<any>(url, { headers }).subscribe({
+      next: (response) => {
+        console.log('🔵 [ORDERS HISTORY] Respuesta del backend:', response);
+        
+        // Mostrar mensaje según el estado
+        let mensaje = '';
+        if (response.message) {
+          mensaje = response.message;
+        } else if (response.success && (paymentStatus === 'success' || paymentStatus === 'approved')) {
+          mensaje = '✅ Pago procesado exitosamente. Tu pedido ha sido confirmado.';
+        } else if (paymentStatus === 'failure' || paymentStatus === 'rejected') {
+          mensaje = '❌ El pago fue rechazado. Tu pedido ha sido cancelado. Por favor, intenta realizar el pedido nuevamente.';
+        } else if (paymentStatus === 'pending') {
+          mensaje = '⏳ Tu pago está pendiente. El pedido se confirmará automáticamente cuando el pago sea procesado.';
+        }
+        
+        if (mensaje) {
+          alert(mensaje);
+        }
+        
+        // Recargar pedidos para ver el estado actualizado
+        setTimeout(() => {
+          this.loadPedidos();
+        }, 1000);
+      },
+      error: (error) => {
+        console.error('🔴 [ORDERS HISTORY] Error al procesar retorno de MercadoPago:', error);
+        // Aún así, mostrar mensaje al usuario y recargar pedidos
+        let mensaje = '⚠️ Se procesó el retorno de MercadoPago, pero hubo un error al actualizar el pedido. Por favor, verifica el estado del pedido.';
+        if (paymentStatus === 'success' || paymentStatus === 'approved') {
+          mensaje = '✅ Pago aprobado. Verificando estado del pedido...';
+        }
+        alert(mensaje);
+        
+        // Recargar pedidos para ver el estado actualizado
+        setTimeout(() => {
+          this.loadPedidos();
+        }, 1000);
+      },
+      complete: () => {
+        // Limpiar los parámetros de la URL después de procesar
+        this.router.navigate(['/orders-history'], { replaceUrl: true });
+      }
+    });
   }
 
   loadPedidos(): void {

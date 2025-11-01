@@ -207,7 +207,7 @@ public class PedidoController {
                     .tipo(pedido.getTipo() != null ? pedido.getTipo().toString() : "PEDIDO") // ⭐ NUEVO: Incluir tipo de documento
                     .tipoAprobacionDevolucion(pedido.getTipoAprobacionDevolucion() != null ? pedido.getTipoAprobacionDevolucion().toString() : null) // ⭐ NUEVO: Tipo de aprobación para devoluciones
                     .total(pedido.getTotal())
-                    .metodoPago(pedido.getMetodoPago()) // ⭐ NUEVO: Incluir método de pago
+                    .metodoPago(pedido.getMetodoPago() != null ? pedido.getMetodoPago().toString() : null) // ⭐ NUEVO: Incluir método de pago (convertir enum a String)
                     .detalles(detallesDTO)
                     .usuario(usuarioInfo != null ?
                             com.hrk.tienda_b2b.dto.UsuarioDTO.builder()

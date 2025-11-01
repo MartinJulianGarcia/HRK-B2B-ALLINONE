@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgIf, NgFor, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CartService, PedidoDTO, CarritoItemDTO } from '../../../core/cart.service';
 import { OrdersService } from '../../../core/orders.service';
 import { AuthService, Usuario } from '../../../core/auth.service';
@@ -27,7 +28,8 @@ export class CartPageComponent implements OnInit {
   paymentMethods = [
     { value: 'efectivo', label: 'Efectivo' },
     { value: 'transferencia', label: 'Transferencia' },
-    { value: 'cheque', label: 'Cheque' }
+    { value: 'cheque', label: 'Cheque' },
+    { value: 'mercadopago', label: 'MercadoPago' }
   ];
 
   // Funcionalidad de búsqueda
@@ -42,11 +44,14 @@ export class CartPageComponent implements OnInit {
   selectedUser: Usuario | null = null;
   loadingUsers = false;
 
+  private readonly API_URL = 'http://localhost:8081/api';
+
   constructor(
     private cart: CartService, 
     private orders: OrdersService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -118,6 +123,13 @@ export class CartPageComponent implements OnInit {
 
   // Confirmar pedido con método de pago seleccionado
   confirmarPedidoConPago(): void {
+    // Si es MercadoPago, primero crear el pedido y luego la preferencia
+    if (this.selectedPaymentMethod === 'mercadopago') {
+      this.procesarMercadoPago();
+      return;
+    }
+
+    // Para otros métodos de pago, flujo normal
     if (!this.selectedPaymentMethod) {
       alert('Por favor selecciona un método de pago');
       return;
@@ -258,6 +270,117 @@ export class CartPageComponent implements OnInit {
   private getPaymentMethodLabel(): string {
     const method = this.paymentMethods.find(m => m.value === this.selectedPaymentMethod);
     return method ? method.label : this.selectedPaymentMethod;
+  }
+
+  // Procesar pago con MercadoPago
+  procesarMercadoPago(): void {
+    const usuario = this.authService.getCurrentUser();
+    if (!usuario) {
+      alert('Debes iniciar sesión para realizar un pedido');
+      return;
+    }
+
+    const clienteId = this.isAdmin && this.selectedUserId ? this.selectedUserId : usuario.id;
+    const usuarioInfo = {
+      nombreRazonSocial: usuario.nombreRazonSocial,
+      email: usuario.email
+    };
+
+    // Preparar items del carrito
+    const items = this.carritoItems.map(item => ({
+      id: item.id,
+      productoId: 0, // Se obtiene del backend
+      varianteId: item.varianteId,
+      cantidad: item.cantidad,
+      precioUnitario: item.precioUnitario,
+      subtotal: item.subtotal
+    }));
+
+    // Primero crear el pedido
+    this.orders.crearPedido(clienteId, items, 'mercadopago', usuarioInfo).subscribe({
+      next: (pedido) => {
+        console.log('🔵 [CART] Pedido creado para MercadoPago:', pedido);
+        
+        if (pedido.id && pedido.id > 0) {
+          // Crear preferencia de pago en MercadoPago
+          this.crearPreferenciaMercadoPago(pedido.id);
+        } else {
+          alert('Error al crear el pedido. Por favor, intenta nuevamente.');
+          this.showPaymentModal = false;
+          this.selectedPaymentMethod = '';
+        }
+      },
+      error: (error) => {
+        console.error('🔴 [CART] Error al crear pedido para MercadoPago:', error);
+        alert('Error al crear el pedido. Por favor, intenta nuevamente.');
+        this.showPaymentModal = false;
+        this.selectedPaymentMethod = '';
+      }
+    });
+  }
+
+  // Crear preferencia de pago en MercadoPago y redirigir
+  crearPreferenciaMercadoPago(pedidoId: number): void {
+    const token = this.authService.getToken();
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+
+    this.http.post<any>(`${this.API_URL}/mercadopago/crear-preferencia/${pedidoId}`, {}, { headers })
+      .subscribe({
+        next: (response) => {
+          console.log('🔵 [MERCADOPAGO] Preferencia creada:', response);
+          
+          if (response.success && response.initPoint) {
+            // Limpiar carrito antes de redirigir
+            this.cart.limpiarCarrito();
+            this.loadCarritoItems();
+            this.updateCartCount();
+            
+            // Cerrar modal
+            this.showPaymentModal = false;
+            this.selectedPaymentMethod = '';
+            
+            // Mostrar mensaje importante antes de redirigir
+            const mensaje = '🔵 Serás redirigido a MercadoPago para completar el pago.\n\n' +
+                           '⚠️ IMPORTANTE: Después de completar el pago en MercadoPago, ' +
+                           'debes volver manualmente a la aplicación visitando:\n\n' +
+                           'http://localhost:4200/orders-history\n\n' +
+                           'Allí se actualizará automáticamente el estado de tu pedido.';
+            
+            // Usar confirm para dar tiempo de leer el mensaje
+            const continuar = confirm(mensaje);
+            
+            if (continuar) {
+              // Redirigir a MercadoPago
+              // Usar initPoint para producción, sandboxInitPoint para testing
+              const urlPago = response.sandboxInitPoint || response.initPoint;
+              console.log('🔵 [MERCADOPAGO] Redirigiendo a:', urlPago);
+              window.location.href = urlPago;
+            } else {
+              // Si el usuario cancela, informarle que puede volver a intentar
+              alert('Puedes volver a intentar el pago desde tu historial de pedidos.');
+              // Redirigir al historial de pedidos
+              this.router.navigate(['/orders-history']);
+            }
+          } else {
+            alert('Error al crear la preferencia de pago. Por favor, intenta nuevamente.');
+          }
+        },
+        error: (error) => {
+          console.error('🔴 [MERCADOPAGO] Error al crear preferencia:', error);
+          let errorMessage = 'Error al procesar el pago con MercadoPago.';
+          
+          if (error.error?.error) {
+            errorMessage = error.error.error;
+          }
+          
+          alert(errorMessage);
+          this.showPaymentModal = false;
+          this.selectedPaymentMethod = '';
+        }
+      });
   }
 
   updateCartCount(): void {

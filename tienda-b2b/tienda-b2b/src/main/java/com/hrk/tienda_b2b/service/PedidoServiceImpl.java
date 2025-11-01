@@ -39,13 +39,16 @@ public class PedidoServiceImpl implements PedidoService {
             Usuario usuario = usuarioRepo.findById(clienteId)
                     .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + clienteId));
 
+            // Convertir String a enum MetodoPago
+            MetodoPago metodoPagoEnum = MetodoPago.fromString(metodoPago);
+            
             Pedido p = Pedido.builder()
                     .clienteId(clienteId)
                     .usuario(usuario)
                     .fecha(LocalDateTime.now())
                     .estado(EstadoPedido.BORRADOR)
                     .total(0.0)
-                    .metodoPago(metodoPago) // ⭐ NUEVO: Guardar método de pago
+                    .metodoPago(metodoPagoEnum) // ⭐ NUEVO: Guardar método de pago como enum
                     .build();
 
             Pedido savedPedido = pedidoRepo.save(p);

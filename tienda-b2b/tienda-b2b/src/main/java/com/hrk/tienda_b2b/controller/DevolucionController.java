@@ -36,7 +36,7 @@ public class DevolucionController {
             devolucion.getTipo(),
             devolucion.getPedidoOrigenId(),
             devolucion.getTotal(),
-            devolucion.getMetodoPago(),
+            devolucion.getMetodoPago() != null ? devolucion.getMetodoPago().toString() : null,
             devolucion.getClienteId()
         );
         return ResponseEntity.ok(response);
@@ -106,7 +106,7 @@ public class DevolucionController {
             devolucion.getTipo(),
             devolucion.getPedidoOrigenId(),
             devolucion.getTotal(),
-            devolucion.getMetodoPago(),
+            devolucion.getMetodoPago() != null ? devolucion.getMetodoPago().toString() : null,
             devolucion.getClienteId()
         );
         return ResponseEntity.ok(response);
@@ -197,7 +197,7 @@ public class DevolucionController {
                     .tipo(pedido.getTipo() != null ? pedido.getTipo().toString() : "DEVOLUCION")
                     .tipoAprobacionDevolucion(pedido.getTipoAprobacionDevolucion() != null ? pedido.getTipoAprobacionDevolucion().toString() : null) // ⭐ NUEVO: Tipo de aprobación para devoluciones
                     .total(pedido.getTotal())
-                    .metodoPago(pedido.getMetodoPago())
+                    .metodoPago(pedido.getMetodoPago() != null ? pedido.getMetodoPago().toString() : null)
                     .usuario(pedido.getUsuario() != null ?
                             UsuarioDTO.builder()
                                     .id(pedido.getUsuario().getId())

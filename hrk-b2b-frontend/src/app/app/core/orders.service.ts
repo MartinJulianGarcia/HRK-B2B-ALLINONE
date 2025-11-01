@@ -297,24 +297,35 @@ export class OrdersService {
             console.log('🔵 [ORDERS SERVICE] Items agregados exitosamente:', itemsExitosos.length, 'de', items.length);
             
             // Si tenemos una respuesta exitosa guardada, confirmar el pedido para descontar stock
+            // EXCEPTO si el método de pago es MercadoPago (debe quedarse en BORRADOR hasta confirmar el pago)
             if (ultimaRespuestaPedido && itemsExitosos.length === items.length) {
-              console.log('🔵 [ORDERS SERVICE] Todos los items agregados. Confirmando pedido para descontar stock...');
+              const esMercadoPago = metodoPago && (metodoPago.toLowerCase() === 'mercadopago' || metodoPago.toLowerCase() === 'mercado_pago' || metodoPago.toLowerCase() === 'mercado pago');
               
-              // Confirmar el pedido para descontar stock y registrar movimientos
-              return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoCreado.id}/confirmar`, {}).pipe(
-                map((pedidoConfirmado: PedidoResponseDTO) => {
-                  console.log('✅ [ORDERS SERVICE] Pedido confirmado - Stock descontado:', pedidoConfirmado);
-                  const pedidoFinal = this.mapToPedido(pedidoConfirmado);
-                  return pedidoFinal;
-                }),
-                catchError((error) => {
-                  console.error('🔴 [ORDERS SERVICE] Error al confirmar pedido (pero items ya agregados):', error);
-                  // Si falla la confirmación, devolver el pedido sin confirmar (pero ya con items)
-                  const pedidoFinal = this.mapToPedido(ultimaRespuestaPedido);
-                  console.warn('⚠️ [ORDERS SERVICE] Pedido creado pero NO confirmado - Stock NO descontado');
-                  return of(pedidoFinal);
-                })
-              );
+              if (esMercadoPago) {
+                // Para MercadoPago: NO confirmar el pedido, dejarlo en BORRADOR
+                console.log('🔵 [ORDERS SERVICE] Método de pago es MercadoPago. Pedido se queda en BORRADOR hasta confirmar el pago.');
+                const pedidoFinal = this.mapToPedido(ultimaRespuestaPedido);
+                return of(pedidoFinal);
+              } else {
+                // Para otros métodos de pago: confirmar el pedido para descontar stock
+                console.log('🔵 [ORDERS SERVICE] Todos los items agregados. Confirmando pedido para descontar stock...');
+                
+                // Confirmar el pedido para descontar stock y registrar movimientos
+                return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoCreado.id}/confirmar`, {}).pipe(
+                  map((pedidoConfirmado: PedidoResponseDTO) => {
+                    console.log('✅ [ORDERS SERVICE] Pedido confirmado - Stock descontado:', pedidoConfirmado);
+                    const pedidoFinal = this.mapToPedido(pedidoConfirmado);
+                    return pedidoFinal;
+                  }),
+                  catchError((error) => {
+                    console.error('🔴 [ORDERS SERVICE] Error al confirmar pedido (pero items ya agregados):', error);
+                    // Si falla la confirmación, devolver el pedido sin confirmar (pero ya con items)
+                    const pedidoFinal = this.mapToPedido(ultimaRespuestaPedido);
+                    console.warn('⚠️ [ORDERS SERVICE] Pedido creado pero NO confirmado - Stock NO descontado');
+                    return of(pedidoFinal);
+                  })
+                );
+              }
             } else if (ultimaRespuestaPedido) {
               // Si algunos items fallaron, devolver el pedido parcial sin confirmar
               console.warn('⚠️ [ORDERS SERVICE] Algunos items no se agregaron. Pedido NO confirmado.');
