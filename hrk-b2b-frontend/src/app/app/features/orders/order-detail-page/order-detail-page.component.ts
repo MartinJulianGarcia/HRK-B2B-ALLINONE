@@ -113,7 +113,7 @@ export class OrderDetailPageComponent implements OnInit {
   }
 
   marcarComoCancelado(): void {
-    // Solo se pueden cancelar pedidos CONFIRMADOS (no ENTREGADOS)
+    // No se pueden cancelar pedidos ENTREGADOS o que ya están CANCELADOS
     if (!this.pedido || this.pedido.estado === EstadoPedido.CANCELADO || 
         this.pedido.estado === EstadoPedido.ENTREGADO) {
       if (this.pedido?.estado === EstadoPedido.ENTREGADO) {
@@ -122,11 +122,19 @@ export class OrderDetailPageComponent implements OnInit {
       return;
     }
 
-    // Confirmar antes de cancelar
-    const confirmacion = confirm(
-      `¿Estás seguro de que quieres cancelar el pedido #${this.pedido.id}?\n\n` +
-      `Esta acción no se puede deshacer.`
-    );
+    // Mensaje de confirmación según el estado del pedido
+    let mensajeConfirmacion = '';
+    if (this.pedido.estado === EstadoPedido.CONFIRMADO) {
+      mensajeConfirmacion = `¿Estás seguro de que quieres cancelar el pedido #${this.pedido.id}?\n\n` +
+        `⚠️ Este pedido está CONFIRMADO, por lo que se restaurará el stock descontado.\n\n` +
+        `Esta acción no se puede deshacer.`;
+    } else {
+      mensajeConfirmacion = `¿Estás seguro de que quieres cancelar el pedido #${this.pedido.id}?\n\n` +
+        `Este pedido está en estado ${this.pedido.estado}, por lo que no se restaurará stock (nunca se había descontado).\n\n` +
+        `Esta acción no se puede deshacer.`;
+    }
+
+    const confirmacion = confirm(mensajeConfirmacion);
 
     if (!confirmacion) {
       return;
@@ -134,6 +142,9 @@ export class OrderDetailPageComponent implements OnInit {
 
     this.cambiandoEstado = true;
     console.log('🔵 [ORDER DETAIL] Marcando pedido como cancelado:', this.pedido.id);
+
+    // Guardar el estado anterior para el mensaje de éxito
+    const estadoAnterior = this.pedido.estado;
 
     // Llamar al backend para marcar como cancelado
     this.ordersService.cambiarEstadoPedido(this.pedido.id, EstadoPedido.CANCELADO).subscribe({
@@ -144,7 +155,10 @@ export class OrderDetailPageComponent implements OnInit {
         this.pedido!.estado = EstadoPedido.CANCELADO;
         
         this.cambiandoEstado = false;
-        alert(`✅ Pedido #${this.pedido?.id} marcado como cancelado exitosamente`);
+        const mensajeExito = estadoAnterior === EstadoPedido.CONFIRMADO 
+          ? `✅ Pedido #${this.pedido?.id} cancelado exitosamente. Stock restaurado.`
+          : `✅ Pedido #${this.pedido?.id} cancelado exitosamente.`;
+        alert(mensajeExito);
       },
       error: (error) => {
         console.error('🔴 [ORDER DETAIL] Error al marcar como cancelado:', error);
@@ -155,6 +169,8 @@ export class OrderDetailPageComponent implements OnInit {
           errorMessage = 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.';
         } else if (error.status === 404) {
           errorMessage = 'Pedido no encontrado.';
+        } else if (error.status === 400) {
+          errorMessage = error.error?.error || 'No se puede cancelar el pedido en su estado actual.';
         }
         
         alert(`❌ ${errorMessage}`);

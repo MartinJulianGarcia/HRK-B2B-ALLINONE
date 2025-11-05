@@ -151,47 +151,64 @@ public class PedidoServiceImpl implements PedidoService {
     @Override
     @Transactional
     public Pedido cancelar(Long pedidoId) {
-        System.out.println("🔵 [BACKEND] Cancelando pedido (restaurando stock): " + pedidoId);
+        System.out.println("🔵 [BACKEND] Cancelando pedido: " + pedidoId);
         
         Pedido p = pedidoRepo.findById(pedidoId)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
 
-        // ⭐ Solo se pueden cancelar pedidos CONFIRMADOS (no ENTREGADOS, esos ya no se cancelan)
-        if (p.getEstado() != EstadoPedido.CONFIRMADO) {
-            throw new IllegalStateException("Solo se pueden cancelar pedidos CONFIRMADOS. Estado actual: " + p.getEstado() + ". Los pedidos ENTREGADOS no se pueden cancelar.");
+        // ⭐ No se pueden cancelar pedidos ENTREGADOS
+        if (p.getEstado() == EstadoPedido.ENTREGADO) {
+            throw new IllegalStateException("No se pueden cancelar pedidos ENTREGADOS. Estado actual: " + p.getEstado());
         }
 
-        // Forzar carga de detalles usando el repositorio para evitar problemas de lazy loading
-        List<DetallePedido> detalles = detalleRepo.findByPedidoId(pedidoId);
-        
-        if (detalles == null || detalles.isEmpty()) {
-            throw new IllegalStateException("El pedido no tiene detalles");
+        // ⭐ No se pueden cancelar pedidos que ya están cancelados
+        if (p.getEstado() == EstadoPedido.CANCELADO) {
+            throw new IllegalStateException("El pedido ya está cancelado.");
         }
+
+        // ⭐ Si el pedido está CONFIRMADO, hay que restaurar el stock que se descontó
+        // Si está en BORRADOR, DOCUMENTADO o PENDIENTE, nunca se descontó stock, así que solo cambiamos el estado
+        boolean necesitaRestaurarStock = (p.getEstado() == EstadoPedido.CONFIRMADO);
         
-        System.out.println("🔵 [BACKEND] Pedido tiene " + detalles.size() + " detalles a cancelar");
-
-        // Restaurar stock de todas las variantes
-        for (DetallePedido d : detalles) {
-            ProductoVariante v = varianteRepo.findById(d.getVariante().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada"));
-
-            v.setStockDisponible(v.getStockDisponible() + d.getCantidad());
-            varianteRepo.save(v);
+        if (necesitaRestaurarStock) {
+            System.out.println("🔵 [BACKEND] Pedido CONFIRMADO - Se restaurará el stock descontado");
             
-            System.out.println("🔵 [BACKEND] Stock restaurado para variante " + v.getSku() + ": +" + d.getCantidad());
+            // Forzar carga de detalles usando el repositorio para evitar problemas de lazy loading
+            List<DetallePedido> detalles = detalleRepo.findByPedidoId(pedidoId);
+            
+            if (detalles == null || detalles.isEmpty()) {
+                throw new IllegalStateException("El pedido no tiene detalles");
+            }
+            
+            System.out.println("🔵 [BACKEND] Pedido tiene " + detalles.size() + " detalles a cancelar");
 
-            movRepo.save(MovimientoStock.builder()
-                    .variante(v)
-                    .pedido(p)
-                    .detalle(d)
-                    .tipo(TipoMovimiento.REVERSION_POR_ANULACION)
-                    .cantidad(d.getCantidad())
-                    .fecha(LocalDateTime.now())
-                    .build());
+            // Restaurar stock de todas las variantes
+            for (DetallePedido d : detalles) {
+                ProductoVariante v = varianteRepo.findById(d.getVariante().getId())
+                        .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada"));
+
+                v.setStockDisponible(v.getStockDisponible() + d.getCantidad());
+                varianteRepo.save(v);
+                
+                System.out.println("🔵 [BACKEND] Stock restaurado para variante " + v.getSku() + ": +" + d.getCantidad());
+
+                movRepo.save(MovimientoStock.builder()
+                        .variante(v)
+                        .pedido(p)
+                        .detalle(d)
+                        .tipo(TipoMovimiento.REVERSION_POR_ANULACION)
+                        .cantidad(d.getCantidad())
+                        .fecha(LocalDateTime.now())
+                        .build());
+            }
+            
+            System.out.println("✅ [BACKEND] Pedido cancelado - Stock restaurado");
+        } else {
+            System.out.println("🔵 [BACKEND] Pedido en estado " + p.getEstado() + " - No se descontó stock, solo se cambia el estado");
+            System.out.println("✅ [BACKEND] Pedido cancelado - No se restauró stock (nunca se había descontado)");
         }
 
         p.setEstado(EstadoPedido.CANCELADO);
-        System.out.println("✅ [BACKEND] Pedido cancelado - Stock restaurado");
         return pedidoRepo.save(p);
     }
 
