@@ -104,8 +104,44 @@
         <label>Estado actual: <strong>{{ pedido.estado }}</strong></label>
         
         <!-- Botones de acción rápida -->
-        <!-- Mostrar botones para pedidos CONFIRMADOS o PENDIENTES (para marcar como ENTREGADO o CANCELAR) -->
-        <div class="quick-actions" *ngIf="isPendienteOrConfirmado() && !esDevolucion()">
+        <!-- Para pedidos MercadoPago pendientes: mostrar botón azul "Confirmar Pedido" -->
+        <div class="quick-actions confirm-actions" *ngIf="esMercadoPagoPendiente() && !esDevolucion()">
+          <button 
+            class="confirm-btn"
+            (click)="confirmarPedido()"
+            [disabled]="cambiandoEstado">
+            <span *ngIf="!cambiandoEstado">📋 Confirmar Pedido</span>
+            <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
+          </button>
+          <button 
+            class="cancel-btn"
+            (click)="marcarComoCancelado()"
+            [disabled]="cambiandoEstado || isCancelado() || isEntregado()">
+            <span *ngIf="!cambiandoEstado">❌ Marcar como Cancelado</span>
+            <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
+          </button>
+        </div>
+        
+        <!-- Para pedidos CONFIRMADOS (no MercadoPago pendientes): mostrar botón verde "Entregado" -->
+        <div class="quick-actions" *ngIf="isConfirmado() && !esMercadoPagoPendiente() && !esDevolucion()">
+          <button 
+            class="deliver-btn"
+            (click)="marcarComoEntregado()"
+            [disabled]="cambiandoEstado || isEntregado()">
+            <span *ngIf="!cambiandoEstado">✅ Marcar como Entregado</span>
+            <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
+          </button>
+          <button 
+            class="cancel-btn"
+            (click)="marcarComoCancelado()"
+            [disabled]="cambiandoEstado || isCancelado() || isEntregado()">
+            <span *ngIf="!cambiandoEstado">❌ Marcar como Cancelado</span>
+            <span *ngIf="cambiandoEstado">⏳ Procesando...</span>
+          </button>
+        </div>
+        
+        <!-- Para pedidos PENDIENTES que NO son MercadoPago: mostrar botones normales -->
+        <div class="quick-actions" *ngIf="isPendiente() && !esMercadoPagoPendiente() && !esDevolucion()">
           <button 
             class="deliver-btn"
             (click)="marcarComoEntregado()"

@@ -223,6 +223,63 @@ export class OrderDetailPageComponent implements OnInit {
     return this.pedido?.tipo === TipoPedido.DEVOLUCION;
   }
 
+  // Verificar si es un pedido MercadoPago pendiente
+  esMercadoPagoPendiente(): boolean {
+    if (!this.pedido) return false;
+    const metodoPago = this.pedido.metodoPago?.toLowerCase() || '';
+    const esMercadoPago = metodoPago.includes('mercadopago') || metodoPago.includes('mercado_pago') || metodoPago.includes('mercado pago');
+    return esMercadoPago && (this.isPendiente() || this.pedido.estado === EstadoPedido.PENDIENTE);
+  }
+
+  // Confirmar pedido MercadoPago pendiente
+  confirmarPedido(): void {
+    if (!this.pedido || !this.esMercadoPagoPendiente()) {
+      return;
+    }
+
+    const confirmacion = confirm(
+      `¿Confirmar el pedido #${this.pedido.id}?\n\n` +
+      `Esta acción confirmará el pedido y descontará el stock.`
+    );
+
+    if (!confirmacion) {
+      return;
+    }
+
+    this.cambiandoEstado = true;
+    console.log('🔵 [ORDER DETAIL] Confirmando pedido MercadoPago:', this.pedido.id);
+
+    // Llamar directamente al endpoint confirmar del backend
+    // El backend detectará que está en BORRADOR/PENDIENTE y lo confirmará (descontará stock)
+    this.ordersService.cambiarEstadoPedido(this.pedido.id, EstadoPedido.CONFIRMADO).subscribe({
+      next: (response) => {
+        console.log('🔵 [ORDER DETAIL] Pedido confirmado:', response);
+        
+        // Actualizar el pedido local
+        this.pedido!.estado = EstadoPedido.CONFIRMADO;
+        
+        this.cambiandoEstado = false;
+        alert(`✅ Pedido #${this.pedido?.id} confirmado exitosamente`);
+        this.loadPedido(); // Recargar para asegurar que tenemos el estado actualizado
+      },
+      error: (error) => {
+        console.error('🔴 [ORDER DETAIL] Error al confirmar pedido:', error);
+        this.cambiandoEstado = false;
+        
+        let errorMessage = 'Error al confirmar el pedido.';
+        if (error.status === 500) {
+          errorMessage = 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.';
+        } else if (error.status === 404) {
+          errorMessage = 'Pedido no encontrado.';
+        } else if (error.status === 400) {
+          errorMessage = error.error?.error || 'No se puede confirmar el pedido en su estado actual.';
+        }
+        
+        alert(`❌ ${errorMessage}`);
+      }
+    });
+  }
+
   // Verificar si la devolución ya fue aprobada
   esDevolucionAprobada(): boolean {
     return this.esDevolucion() && this.pedido?.estado === EstadoPedido.CONFIRMADO;

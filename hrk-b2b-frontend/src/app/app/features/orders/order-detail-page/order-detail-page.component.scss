@@ -418,6 +418,10 @@ $light-gray: #f8f9fa;
   flex-direction: column;
   gap: 12px;
   align-items: flex-start;
+  
+  &.confirm-actions {
+    border-left-color: #007bff; // Azul para acciones de confirmar
+  }
 }
 
 .deliver-btn {
@@ -438,6 +442,34 @@ $light-gray: #f8f9fa;
     background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+  }
+  
+  &:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  max-width: 300px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+  
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
   }
   
   &:disabled {
