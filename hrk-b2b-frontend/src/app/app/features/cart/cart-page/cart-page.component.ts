@@ -2,10 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { NgIf, NgFor, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { CartService, PedidoDTO, CarritoItemDTO } from '../../../core/cart.service';
 import { OrdersService } from '../../../core/orders.service';
 import { AuthService, Usuario } from '../../../core/auth.service';
+import { API_BASE_URL } from '../../../core/backend-url';
 
 @Component({
   selector: 'app-cart-page',
@@ -44,7 +45,7 @@ export class CartPageComponent implements OnInit {
   selectedUser: Usuario | null = null;
   loadingUsers = false;
 
-  private readonly API_URL = 'http://localhost:8081/api';
+  private readonly API_URL = API_BASE_URL;
 
   constructor(
     private cart: CartService, 
@@ -322,12 +323,14 @@ export class CartPageComponent implements OnInit {
   // Crear preferencia de pago en MercadoPago y redirigir
   crearPreferenciaMercadoPago(pedidoId: number): void {
     const token = this.authService.getToken();
+    const frontendUrl = window.location.origin;
+    const params = new HttpParams().set('frontendUrl', frontendUrl);
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     });
 
-    this.http.post<any>(`${this.API_URL}/mercadopago/crear-preferencia/${pedidoId}`, {}, { headers })
+    this.http.post<any>(`${this.API_URL}/mercadopago/crear-preferencia/${pedidoId}`, {}, { headers, params })
       .subscribe({
         next: (response) => {
           console.log('🔵 [MERCADOPAGO] Preferencia creada:', response);
@@ -342,20 +345,23 @@ export class CartPageComponent implements OnInit {
             this.showPaymentModal = false;
             this.selectedPaymentMethod = '';
             
-            // Mostrar mensaje importante antes de redirigir
-            const mensaje = '🔵 Serás redirigido a MercadoPago para completar el pago.\n\n' +
-                           '⚠️ IMPORTANTE: Después de completar el pago en MercadoPago, ' +
-                           'debes volver manualmente a la aplicación visitando:\n\n' +
-                           'http://localhost:4200/orders-history\n\n' +
-                           'Allí se actualizará automáticamente el estado de tu pedido.';
+            const retornoUrl = `${frontendUrl}/orders-history`;
+            const mensaje = frontendUrl.startsWith('https://')
+              ? '🔵 Serás redirigido a MercadoPago para completar el pago.\n\n' +
+                'Una vez aprobado el pago volverás automáticamente a la aplicación.\n\n' +
+                'Podrás revisar el estado en tu historial de pedidos.'
+              : '🔵 Serás redirigido a MercadoPago para completar el pago.\n\n' +
+                '⚠️ IMPORTANTE: Después de completar el pago, regresa manualmente a:\n\n' +
+                `${retornoUrl}\n\n` +
+                'Allí se actualizará el estado de tu pedido.';
             
             // Usar confirm para dar tiempo de leer el mensaje
             const continuar = confirm(mensaje);
             
             if (continuar) {
               // Redirigir a MercadoPago
-              // Usar initPoint para producción, sandboxInitPoint para testing
-              const urlPago = response.sandboxInitPoint || response.initPoint;
+              // Usar initPoint (funciona con autoReturn). sandboxInitPoint queda como fallback.
+              const urlPago = response.initPoint || response.sandboxInitPoint;
               console.log('🔵 [MERCADOPAGO] Redirigiendo a:', urlPago);
               window.location.href = urlPago;
             } else {

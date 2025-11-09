@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { OrdersService, ItemPedido } from './orders.service';
+import { BACKEND_BASE_URL } from './backend-url';
 
 export interface PedidoDetalleDTO {
   varianteId: number; cantidad: number; precioUnitario: number;
@@ -111,7 +112,7 @@ export class CartService {
   agregarItem(carritoId: number, varianteId: number, cantidad: number): Observable<void> {
     return new Observable(observer => {
       // Obtener datos reales de la variante del backend
-      this.http.get<any>(`http://localhost:8081/api/productos`).subscribe({
+      this.http.get<any>(`${BACKEND_BASE_URL}/api/productos`).subscribe({
         next: (productos) => {
           // Buscar la variante en todos los productos
           let varianteEncontrada = null;

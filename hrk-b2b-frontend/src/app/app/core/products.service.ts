@@ -3,6 +3,7 @@ import { Observable, of } from 'rxjs';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { tap, catchError, switchMap } from 'rxjs/operators';
 import { Categoria } from './categories.enum';
+import { API_BASE_URL, BACKEND_BASE_URL } from './backend-url';
 
 export interface VarianteDTO {
   id: number; 
@@ -33,10 +34,8 @@ export interface ProductoDTO {
 @Injectable({ providedIn: 'root' })
 export class ProductsService {
   // URL base para el backend - cambiar según el entorno
-  private readonly BASE_URL = 'http://localhost:8081';  // Desarrollo
-  // Para producción cambiar a: 'https://api.tuapp.com'
-  
-  private readonly API_URL = `${this.BASE_URL}/api`;
+  private readonly BASE_URL = BACKEND_BASE_URL;
+  private readonly API_URL = `${API_BASE_URL}`;
   
   constructor(private http: HttpClient) {}
 
@@ -67,7 +66,7 @@ export class ProductsService {
     // Si es una imagen subida al backend, usar URL directa al backend
     if (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('uploads/')) {
       const normalizedUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-      const directUrl = `http://localhost:8081${normalizedUrl}`;
+      const directUrl = `${BACKEND_BASE_URL}${normalizedUrl}`;
       console.log('🔍 [FRONTEND] Imagen subida, usando URL directa al backend:', directUrl);
       return directUrl;
     }
@@ -76,7 +75,7 @@ export class ProductsService {
     if (!imageUrl.includes('/') && imageUrl.length > 0 && !imageUrl.includes('.')) {
       // Es probable que sea solo el filename sin extensión o path
       const normalizedUrl = `/uploads/${imageUrl}`;
-      const directUrl = `http://localhost:8081${normalizedUrl}`;
+      const directUrl = `${BACKEND_BASE_URL}${normalizedUrl}`;
       console.log('🔍 [FRONTEND] Solo nombre de archivo, construyendo ruta directa:', directUrl);
       return directUrl;
     }
@@ -84,7 +83,7 @@ export class ProductsService {
     // Si tiene extensión pero no path, es probable que sea el filename directo del backend
     if (!imageUrl.includes('/') && imageUrl.includes('.') && imageUrl.length > 0) {
       const normalizedUrl = `/uploads/${imageUrl}`;
-      const directUrl = `http://localhost:8081${normalizedUrl}`;
+      const directUrl = `${BACKEND_BASE_URL}${normalizedUrl}`;
       console.log('🔍 [FRONTEND] Filename directo del backend, usando URL directa:', directUrl);
       return directUrl;
     }
@@ -100,7 +99,7 @@ export class ProductsService {
     formData.append('file', file);
     
     // URL para subir imágenes - usar URL directa temporalmente
-    const uploadUrl = 'http://localhost:8081/uploads';
+    const uploadUrl = `${BACKEND_BASE_URL}/uploads`;
     
     console.log('🔵 [FRONTEND] Subiendo imagen:', file.name, 'Tamaño:', file.size);
     console.log('🔵 [FRONTEND] URL de subida (URL directa):', uploadUrl);
@@ -121,7 +120,7 @@ export class ProductsService {
         if (typeof response === 'string' && response.trim().startsWith('<!DOCTYPE')) {
           console.error('🔴 [FRONTEND] ❌ La respuesta parece ser HTML en lugar del filename esperado');
           console.error('🔴 [FRONTEND] Esto indica que el endpoint /uploads no está funcionando correctamente');
-          console.error('🔴 [FRONTEND] El proxy podría no estar redirigiendo correctamente a http://localhost:8081');
+          console.error(`🔴 [FRONTEND] El proxy podría no estar redirigiendo correctamente a ${BACKEND_BASE_URL}`);
           throw new Error('El servidor devolvió HTML en lugar del filename del archivo');
         }
         

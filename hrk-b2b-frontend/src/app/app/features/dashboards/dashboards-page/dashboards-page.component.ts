@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../core/auth.service';
 import { CartService } from '../../../core/cart.service';
+import { API_BASE_URL } from '../../../core/backend-url';
 
 @Component({
   selector: 'app-dashboards-page',
@@ -15,7 +16,7 @@ import { CartService } from '../../../core/cart.service';
 })
 export class DashboardsPageComponent implements OnInit {
   cartItemCount = 0;
-  private readonly API_URL = 'http://localhost:8081/api';
+  private readonly API_URL = API_BASE_URL;
   
   // Gráfico de torta (se carga al entrar)
   loadingChart = false;

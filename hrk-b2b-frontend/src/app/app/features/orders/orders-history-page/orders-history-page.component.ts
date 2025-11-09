@@ -6,6 +6,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { OrdersService, Pedido, EstadoPedido, TipoPedido } from '../../../core/orders.service';
 import { AuthService, Usuario } from '../../../core/auth.service';
 import { CartService } from '../../../core/cart.service';
+import { API_BASE_URL } from '../../../core/backend-url';
 
 @Component({
   selector: 'app-orders-history-page',
@@ -35,7 +36,7 @@ export class OrdersHistoryPageComponent implements OnInit {
   selectedUser: Usuario | null = null;
   loadingUsers = false;
 
-  private readonly API_URL = 'http://localhost:8081/api';
+  private readonly API_URL = API_BASE_URL;
 
   constructor(
     private ordersService: OrdersService,
@@ -90,10 +91,10 @@ export class OrdersHistoryPageComponent implements OnInit {
 
   procesarRetornoMercadoPago(params: any): void {
     const paymentStatus = params['payment_status'] || params['status'];
-    // MercadoPago puede enviar dos preference_id:
-    // 1. El preference_id de MercadoPago (UUID largo)
-    // 2. El external_reference que pusimos (que es el pedidoId)
-    // Priorizamos external_reference si está disponible, sino usamos preference_id
+    const paymentId = params['payment_id'] || params['collection_id'];
+    // MercadoPago puede enviar dos referencias:
+    // - preference_id (UUID generado por MercadoPago)
+    // - external_reference (nuestro ID de pedido)
     let preferenceId = params['external_reference'] || params['preference_id'];
     
     if (!preferenceId) {
@@ -123,6 +124,12 @@ export class OrdersHistoryPageComponent implements OnInit {
     }
     if (params['status']) {
       url += `&status=${params['status']}`;
+    }
+    if (paymentId) {
+      url += `&payment_id=${paymentId}`;
+    }
+    if (params['collection_id'] && !paymentId) {
+      url += `&collection_id=${params['collection_id']}`;
     }
     
     this.http.get<any>(url, { headers }).subscribe({

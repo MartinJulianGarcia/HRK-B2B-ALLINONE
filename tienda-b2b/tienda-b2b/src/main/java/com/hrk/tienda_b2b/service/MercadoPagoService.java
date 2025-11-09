@@ -3,13 +3,14 @@ package com.hrk.tienda_b2b.service;
 import com.hrk.tienda_b2b.model.Pedido;
 import com.hrk.tienda_b2b.repository.DetallePedidoRepository;
 import com.hrk.tienda_b2b.repository.PedidoRepository;
-import com.hrk.tienda_b2b.service.PedidoService;
 import com.mercadopago.MercadoPagoConfig;
 import com.mercadopago.client.preference.PreferenceClient;
 import com.mercadopago.client.preference.PreferenceItemRequest;
 import com.mercadopago.client.preference.PreferenceRequest;
 import com.mercadopago.client.preference.PreferenceBackUrlsRequest;
+import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.resources.preference.Preference;
+import com.mercadopago.resources.payment.Payment;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +43,7 @@ public class MercadoPagoService {
     /**
      * Crea una preferencia de pago en MercadoPago para un pedido
      */
-    public Map<String, String> crearPreferenciaPago(Long pedidoId) {
+    public Map<String, String> crearPreferenciaPago(Long pedidoId, String frontendUrlParam) {
         try {
             // Verificar que el token esté configurado
             if (accessToken == null || accessToken.isEmpty() || accessToken.equals("TU_ACCESS_TOKEN_AQUI")) {
@@ -150,12 +151,18 @@ public class MercadoPagoService {
             // NOTA: MercadoPago requiere HTTPS para backUrls en producción.
             // Para desarrollo local con HTTP, no usaremos backUrls y el usuario volverá manualmente.
             // Si tienes HTTPS configurado (con ngrok o similar), configura MERCADOPAGO_FRONTEND_URL
-            String frontendUrl = System.getenv().getOrDefault("MERCADOPAGO_FRONTEND_URL", "http://localhost:4200");
+            String frontendUrl = frontendUrlParam;
+            if (frontendUrl == null || frontendUrl.isBlank()) {
+                frontendUrl = System.getenv().getOrDefault("MERCADOPAGO_FRONTEND_URL", "http://localhost:4200");
+            }
+            if (frontendUrl != null && frontendUrl.endsWith("/")) {
+                frontendUrl = frontendUrl.substring(0, frontendUrl.length() - 1);
+            }
             
             PreferenceBackUrlsRequest backUrls = null;
             
             // Solo usar backUrls si la URL es HTTPS (producción o ngrok)
-            if (frontendUrl.startsWith("https://")) {
+            if (frontendUrl != null && frontendUrl.startsWith("https://")) {
                 backUrls = PreferenceBackUrlsRequest.builder()
                         .success(frontendUrl + "/orders-history?payment_status=success&preference_id=" + pedidoId)
                         .failure(frontendUrl + "/orders-history?payment_status=failure&preference_id=" + pedidoId)
@@ -166,7 +173,7 @@ public class MercadoPagoService {
                 // Para desarrollo local con HTTP, no usar backUrls
                 // MercadoPago redirigirá al usuario pero no automáticamente a nuestra app
                 // El usuario puede volver manualmente y procesaremos el retorno desde orders-history
-                log.info("🔵 [MERCADOPAGO] Modo desarrollo (HTTP). No se usarán backUrls. El usuario deberá volver manualmente.");
+                log.info("🔵 [MERCADOPAGO] Modo desarrollo (sin HTTPS). No se usarán backUrls automáticas. frontendUrl recibido: {}", frontendUrl);
             }
 
             // Validar que tengamos items
@@ -272,59 +279,111 @@ public class MercadoPagoService {
      * @param paymentStatus Estado del pago: "approved", "rejected", "pending"
      * @return true si el pago fue exitoso y el pedido se confirmó
      */
-    public boolean procesarRetornoPago(String preferenceId, String paymentStatus) {
+    public boolean procesarRetornoPago(String preferenceId, String paymentStatus, String paymentId) {
         try {
-            log.info("🔵 [MERCADOPAGO] Procesando retorno de pago. Preference ID: {}, Status: {}", 
-                    preferenceId, paymentStatus);
+            log.info("🔵 [MERCADOPAGO] Procesando retorno de pago. Preference ID: {}, Status (query): {}, Payment ID: {}", 
+                    preferenceId, paymentStatus, paymentId);
+
+            if (accessToken == null || accessToken.isBlank()) {
+                throw new IllegalStateException("MercadoPago access token no configurado");
+            }
+            MercadoPagoConfig.setAccessToken(accessToken);
             
-            // El preferenceId en nuestro caso es el pedidoId (external_reference)
-            Long pedidoId;
-            try {
-                pedidoId = Long.parseLong(preferenceId);
-            } catch (NumberFormatException e) {
-                log.error("🔴 [MERCADOPAGO] Preference ID no es un número válido: {}", preferenceId);
+            Long pedidoId = null;
+            String estadoDeterminado = paymentStatus != null ? paymentStatus.toLowerCase() : null;
+
+            // Si recibimos el paymentId, consultar la API de MercadoPago para obtener el estado real
+            if (paymentId != null && !paymentId.isBlank()) {
+                try {
+                    PaymentClient paymentClient = new PaymentClient();
+                    Payment payment = paymentClient.get(Long.parseLong(paymentId));
+                    
+                    if (payment != null) {
+                        log.info("🔵 [MERCADOPAGO] Pago {} recuperado. Status: {}, ExternalReference: {}", 
+                                payment.getId(), payment.getStatus(), payment.getExternalReference());
+                        
+                        if (payment.getStatus() != null) {
+                            estadoDeterminado = payment.getStatus().toLowerCase();
+                        }
+                        
+                        if (payment.getExternalReference() != null) {
+                            try {
+                                pedidoId = Long.parseLong(payment.getExternalReference());
+                            } catch (NumberFormatException ex) {
+                                log.error("🔴 [MERCADOPAGO] external_reference no es un número válido: {}", payment.getExternalReference());
+                            }
+                        }
+                        
+                        if (pedidoId == null && payment.getOrder() != null && payment.getOrder().getId() != null) {
+                            log.info("🟡 [MERCADOPAGO] Pago tiene orderId {}, pero no external_reference numérico", payment.getOrder().getId());
+                        }
+                    }
+                } catch (MPException | MPApiException e) {
+                    log.error("🔴 [MERCADOPAGO] Error al consultar payment {}: {}", paymentId, e.getMessage(), e);
+                    throw new RuntimeException("No se pudo verificar el pago " + paymentId, e);
+                }
+            }
+            
+            // Si no logramos obtener el pedidoId desde el pago, intentar con preferenceId (external_reference)
+            if (pedidoId == null && preferenceId != null && !preferenceId.isBlank()) {
+                try {
+                    pedidoId = Long.parseLong(preferenceId);
+                } catch (NumberFormatException e) {
+                    log.error("🔴 [MERCADOPAGO] Preference ID no es numérico: {}. Se requiere external_reference para identificar el pedido.", preferenceId);
+                }
+            }
+
+            if (pedidoId == null) {
+                log.error("🔴 [MERCADOPAGO] No se pudo determinar el ID del pedido ni a partir del payment_id ni del preference_id");
                 return false;
             }
             
-            // Obtener el pedido
-            Pedido pedido = pedidoRepository.findById(pedidoId)
-                    .orElse(null);
-            
+            Pedido pedido = pedidoRepository.findById(pedidoId).orElse(null);
             if (pedido == null) {
                 log.error("🔴 [MERCADOPAGO] Pedido no encontrado: {}", pedidoId);
                 return false;
             }
             
-            // Actualizar estado según el resultado del pago
-            if ("approved".equals(paymentStatus) || "success".equals(paymentStatus)) {
-                // Pago exitoso: confirmar el pedido
-                log.info("✅ [MERCADOPAGO] Pago aprobado para pedido: {}", pedidoId);
-                try {
-                    pedidoService.confirmar(pedidoId);
-                    log.info("✅ [MERCADOPAGO] Pedido {} confirmado exitosamente", pedidoId);
-                    return true;
-                } catch (Exception e) {
-                    log.error("🔴 [MERCADOPAGO] Error al confirmar pedido {}: {}", pedidoId, e.getMessage(), e);
-                    return false;
-                }
-            } else if ("rejected".equals(paymentStatus) || "failure".equals(paymentStatus)) {
-                // Pago rechazado: cancelar el pedido
-                log.warn("🟡 [MERCADOPAGO] Pago rechazado para pedido: {}", pedidoId);
-                try {
-                    pedidoService.cancelar(pedidoId);
-                    log.info("✅ [MERCADOPAGO] Pedido {} cancelado por pago rechazado", pedidoId);
-                    return false;
-                } catch (Exception e) {
-                    log.error("🔴 [MERCADOPAGO] Error al cancelar pedido {}: {}", pedidoId, e.getMessage(), e);
-                    return false;
-                }
-            } else if ("pending".equals(paymentStatus)) {
-                // Pago pendiente: mantener el pedido en BORRADOR
-                log.info("🟡 [MERCADOPAGO] Pago pendiente para pedido: {}. El pedido permanece en estado BORRADOR", pedidoId);
-                return false;
+            if (estadoDeterminado != null) {
+                estadoDeterminado = estadoDeterminado.toLowerCase();
             }
-            
-            return false;
+
+            log.info("🔵 [MERCADOPAGO] Estado determinado para pedido {}: {}", pedidoId, estadoDeterminado);
+
+            switch (estadoDeterminado != null ? estadoDeterminado : "") {
+                case "approved":
+                case "success":
+                    log.info("✅ [MERCADOPAGO] Pago aprobado para pedido {}", pedidoId);
+                    try {
+                        pedidoService.confirmar(pedidoId);
+                        log.info("✅ [MERCADOPAGO] Pedido {} confirmado exitosamente", pedidoId);
+                        return true;
+                    } catch (Exception e) {
+                        log.error("🔴 [MERCADOPAGO] Error al confirmar pedido {}: {}", pedidoId, e.getMessage(), e);
+                        return false;
+                    }
+                case "rejected":
+                case "failure":
+                case "cancelled":
+                    log.warn("🟡 [MERCADOPAGO] Pago con resultado {} para pedido {} - cancelando pedido", estadoDeterminado, pedidoId);
+                    try {
+                        pedidoService.cancelar(pedidoId);
+                        log.info("✅ [MERCADOPAGO] Pedido {} cancelado por pago rechazado o cancelado", pedidoId);
+                        return false;
+                    } catch (Exception e) {
+                        log.error("🔴 [MERCADOPAGO] Error al cancelar pedido {}: {}", pedidoId, e.getMessage(), e);
+                        return false;
+                    }
+                case "pending":
+                case "in_process":
+                case "inprocess":
+                case "in_progress":
+                    log.info("🟡 [MERCADOPAGO] Pago pendiente/procesando para pedido {}. Se mantiene en estado actual.", pedidoId);
+                    return false;
+                default:
+                    log.warn("🟡 [MERCADOPAGO] Estado de pago desconocido para pedido {}: {}. No se realizarán cambios.", pedidoId, estadoDeterminado);
+                    return false;
+            }
             
         } catch (Exception e) {
             log.error("🔴 [MERCADOPAGO] Error al procesar retorno de pago: {}", e.getMessage(), e);
@@ -345,12 +404,25 @@ public class MercadoPagoService {
             Object data = datos.get("data");
             
             if ("payment".equals(tipo) && data != null) {
-                String paymentId = data.toString();
-                log.info("🔵 [MERCADOPAGO] Procesando pago: {}", paymentId);
-                
-                // Aquí deberías consultar la API de MercadoPago para obtener los detalles del pago
-                // y actualizar el estado del pedido correspondiente
-                // Por ahora solo registramos el webhook
+                Object paymentIdObj = null;
+
+                if (data instanceof Map<?, ?> dataMap) {
+                    paymentIdObj = dataMap.get("id");
+                } else {
+                    paymentIdObj = data;
+                }
+
+                if (paymentIdObj != null) {
+                    String paymentId = paymentIdObj.toString();
+                    log.info("🔵 [MERCADOPAGO] Webhook recibido para pago ID: {}", paymentId);
+                    try {
+                        procesarRetornoPago(null, null, paymentId);
+                    } catch (Exception ex) {
+                        log.error("🔴 [MERCADOPAGO] Error al procesar webhook de pago {}: {}", paymentId, ex.getMessage(), ex);
+                    }
+                } else {
+                    log.warn("🟡 [MERCADOPAGO] Webhook de tipo payment sin ID en data: {}", data);
+                }
             }
             
         } catch (Exception e) {

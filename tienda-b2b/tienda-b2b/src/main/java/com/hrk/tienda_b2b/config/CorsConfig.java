@@ -20,11 +20,13 @@ public class CorsConfig {
         // Permitir credenciales
         config.setAllowCredentials(true);
 
-        // Permitir origen del frontend
-        config.setAllowedOrigins(Arrays.asList(
-                "http://localhost:4200",
-                "http://localhost:58926",
-                "http://localhost:*"
+        // Permitir origen del frontend (local y túneles HTTPS como ngrok)
+        config.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://*.ngrok-free.dev",
+                "https://*.ngrok.app",
+                "https://*.ngrok.io"
         ));
 
         // Permitir todos los headers

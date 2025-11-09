@@ -22,11 +22,12 @@ public class MercadoPagoController {
      * Endpoint para crear una preferencia de pago en MercadoPago
      */
     @PostMapping("/crear-preferencia/{pedidoId}")
-    public ResponseEntity<?> crearPreferencia(@PathVariable Long pedidoId) {
+    public ResponseEntity<?> crearPreferencia(@PathVariable Long pedidoId,
+                                              @RequestParam(required = false) String frontendUrl) {
         try {
-            log.info("🔵 [MERCADOPAGO] Creando preferencia para pedido: {}", pedidoId);
+            log.info("🔵 [MERCADOPAGO] Creando preferencia para pedido: {} (frontendUrl={})", pedidoId, frontendUrl);
             
-            Map<String, String> preferencia = mercadoPagoService.crearPreferenciaPago(pedidoId);
+            Map<String, String> preferencia = mercadoPagoService.crearPreferenciaPago(pedidoId, frontendUrl);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -78,17 +79,22 @@ public class MercadoPagoController {
     public ResponseEntity<Map<String, Object>> procesarRetorno(
             @RequestParam(required = false) String preference_id,
             @RequestParam(required = false) String payment_status,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String payment_id,
+            @RequestParam(required = false) String collection_id) {
         
         try {
-            log.info("🔵 [MERCADOPAGO] Retorno recibido. preference_id: {}, payment_status: {}, status: {}", 
-                    preference_id, payment_status, status);
+            log.info("🔵 [MERCADOPAGO] Retorno recibido. preference_id: {}, payment_status: {}, status: {}, payment_id: {}, collection_id: {}", 
+                    preference_id, payment_status, status, payment_id, collection_id);
             
             // MercadoPago puede enviar 'status' o 'payment_status'
             String estadoPago = payment_status != null ? payment_status : status;
             if (estadoPago == null) {
                 estadoPago = "pending"; // Por defecto
             }
+            
+            // MercadoPago puede enviar payment_id o collection_id
+            String pagoId = payment_id != null ? payment_id : collection_id;
             
             // Usar preference_id como pedidoId
             if (preference_id == null || preference_id.isEmpty()) {
@@ -98,7 +104,7 @@ public class MercadoPagoController {
                 return ResponseEntity.badRequest().body(errorResponse);
             }
             
-            boolean exito = mercadoPagoService.procesarRetornoPago(preference_id, estadoPago);
+            boolean exito = mercadoPagoService.procesarRetornoPago(preference_id, estadoPago, pagoId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", exito);

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { map, catchError } from 'rxjs/operators';
+import { API_BASE_URL } from './backend-url';
 
 export interface Usuario {
   id: number;
@@ -48,7 +49,7 @@ export class AuthService {
   public currentUser$ = this.currentUserSubject.asObservable();
   public selectedClient$ = this.selectedClientSubject.asObservable();
   
-  private readonly API_URL = 'http://localhost:8081/api';
+  private readonly API_URL = API_BASE_URL;
 
   constructor(private http: HttpClient) {
     // Verificar si hay usuario logueado en localStorage (solo en el cliente)

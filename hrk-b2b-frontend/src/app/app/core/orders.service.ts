@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of, forkJoin, from } from 'rxjs';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { tap, catchError, map, switchMap, concatMap, toArray } from 'rxjs/operators';
+import { API_BASE_URL } from './backend-url';
 
 export enum EstadoPedido {
   PENDIENTE = 'Pendiente',
@@ -115,7 +116,7 @@ export interface PedidoResponseDTO {
 export class OrdersService {
   private pedidos: Pedido[] = [];
   private nextId = 1;
-  private readonly API_URL = 'http://localhost:8081/api';
+  private readonly API_URL = API_BASE_URL;
 
   constructor(private http: HttpClient) {
     // Ya no inicializamos datos mock aquí, los cargamos del backend
