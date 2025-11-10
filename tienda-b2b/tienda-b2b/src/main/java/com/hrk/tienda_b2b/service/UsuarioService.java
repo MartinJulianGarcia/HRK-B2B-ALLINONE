@@ -1,11 +1,5 @@
 package com.hrk.tienda_b2b.service;
 
-import com.hrk.tienda_b2b.model.Usuario;
-
-import java.util.List;
-import java.util.Optional;
-
-
 import com.hrk.tienda_b2b.dto.LoginRequest;
 import com.hrk.tienda_b2b.dto.RegisterRequest;
 import com.hrk.tienda_b2b.model.TipoUsuario;
@@ -35,4 +29,8 @@ public interface UsuarioService {
     boolean existeEmail(String email);
 
     boolean existeCuit(String cuit);
+
+    boolean existeAdministradorActivo();
+
+    boolean puedeCambiarRolAAdmin(Long usuarioId);
 }

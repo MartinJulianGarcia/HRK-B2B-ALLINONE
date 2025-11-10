@@ -39,6 +39,15 @@ public class UsuarioController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}/puede-cambiar-a-admin")
+    public ResponseEntity<Map<String, Boolean>> puedeCambiarARolAdmin(@PathVariable Long id) {
+        boolean allowed = usuarioService.puedeCambiarRolAAdmin(id);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("allowed", allowed);
+        response.put("adminExists", usuarioService.existeAdministradorActivo());
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{id}/rol")
     public ResponseEntity<UsuarioDTO> cambiarRol(@PathVariable Long id, @RequestBody Map<String, String> request) {
         try {

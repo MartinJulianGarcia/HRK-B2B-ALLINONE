@@ -242,6 +242,28 @@ export class AuthService {
       );
   }
 
+  puedeCambiarRolAAdmin(usuarioId: number | null | undefined): Observable<boolean> {
+    if (usuarioId == null) {
+      return of(false);
+    }
+
+    return this.http.get<{ allowed: boolean }>(
+      `${this.API_URL}/usuarios/${usuarioId}/puede-cambiar-a-admin`,
+      { headers: this.getAuthHeaders() }
+    ).pipe(
+      map(response => {
+        if (!response) {
+          return false;
+        }
+        return response.allowed ?? false;
+      }),
+      catchError(error => {
+        console.error('Error al verificar permiso para cambiar a admin:', error);
+        return of(false);
+      })
+    );
+  }
+
   selectClient(cliente: Cliente): void {
     this.selectedClientSubject.next(cliente);
     if (typeof window !== 'undefined' && window.localStorage) {

@@ -644,8 +644,11 @@
   cursor: pointer;
   transition: all 0.3s;
   font-size: 14px;
-  flex: 1;
-  min-width: 150px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 220px;
+  max-width: 100%;
   box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
 }
 

@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { HttpClient, HttpResponse } from '@angular/common/http';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 import { API_BASE_URL } from './backend-url';
 
 export interface TemporadaDTO {
   id: number;
   nombre: string;
   productoIds: number[];
+  activa?: boolean;
 }
 
 export interface TemporadaRequest {
@@ -14,21 +16,28 @@ export interface TemporadaRequest {
   productoIds: number[];
 }
 
+interface SeleccionarTemporadaRequest {
+  temporadaId: number | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class TemporadasService {
   private readonly API_URL = `${API_BASE_URL}/temporadas`;
-  private readonly STORAGE_KEY = 'selectedTemporadaId';
 
-  private selectedTemporadaSubject = new BehaviorSubject<number | null>(this.cargarDesdeStorage());
-
+  private selectedTemporadaSubject = new BehaviorSubject<number | null>(null);
   selectedTemporada$ = this.selectedTemporadaSubject.asObservable();
 
   constructor(private http: HttpClient) {}
 
   list(): Observable<TemporadaDTO[]> {
-    return this.http.get<TemporadaDTO[]>(this.API_URL);
+    return this.http.get<TemporadaDTO[]>(this.API_URL).pipe(
+      tap(temporadas => {
+        const activa = temporadas.find(t => t.activa);
+        this.selectedTemporadaSubject.next(activa ? activa.id : null);
+      })
+    );
   }
 
   getById(id: number): Observable<TemporadaDTO> {
@@ -47,28 +56,27 @@ export class TemporadasService {
     return this.http.delete<void>(`${this.API_URL}/${id}`);
   }
 
-  setSelectedTemporada(id: number | null): void {
-    if (id === null || id === undefined) {
-      localStorage.removeItem(this.STORAGE_KEY);
-      this.selectedTemporadaSubject.next(null);
-      return;
-    }
-    localStorage.setItem(this.STORAGE_KEY, id.toString());
-    this.selectedTemporadaSubject.next(id);
+  getActive(): Observable<TemporadaDTO | null> {
+    return this.http
+      .get<TemporadaDTO>(`${this.API_URL}/activa`, { observe: 'response' })
+      .pipe(
+        map((response: HttpResponse<TemporadaDTO>) => response.body ?? null),
+        tap(temporada => {
+          this.selectedTemporadaSubject.next(temporada ? temporada.id : null);
+        }),
+        catchError(() => of(null))
+      );
   }
 
-  getSelectedTemporadaId(): number | null {
-    return this.selectedTemporadaSubject.value;
-  }
-
-  private cargarDesdeStorage(): number | null {
-    const value = localStorage.getItem(this.STORAGE_KEY);
-    if (!value) {
-      return null;
-    }
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? null : parsed;
+  setActive(temporadaId: number | null): Observable<TemporadaDTO | null> {
+    const payload: SeleccionarTemporadaRequest = { temporadaId };
+    return this.http
+      .put<TemporadaDTO>(`${this.API_URL}/activa`, payload, { observe: 'response' })
+      .pipe(
+        map((response: HttpResponse<TemporadaDTO>) => response.body ?? null),
+        tap(temporada => {
+          this.selectedTemporadaSubject.next(temporada ? temporada.id : null);
+        })
+      );
   }
 }
-
-

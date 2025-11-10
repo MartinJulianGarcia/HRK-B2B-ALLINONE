@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -30,12 +31,27 @@ public class TemporadaService {
                 .orElseThrow(() -> new IllegalArgumentException("Temporada no encontrada con id " + id));
     }
 
+    public Temporada obtenerPorIdConProductos(Long id) {
+        Temporada temporada = obtenerPorId(id);
+        temporada.getProductos().size();
+        return temporada;
+    }
+
+    public Optional<Temporada> obtenerTemporadaActiva() {
+        return temporadaRepository.findByActivaTrue();
+    }
+
+    public Optional<Temporada> obtenerTemporadaActivaConProductos() {
+        return temporadaRepository.findActiveWithProductos();
+    }
+
     @Transactional
     public Temporada crearTemporada(TemporadaRequest request) {
         validarNombre(request.getNombre());
 
         Temporada temporada = Temporada.builder()
                 .nombre(request.getNombre().trim())
+                .activa(false)
                 .build();
 
         Set<Producto> productos = cargarProductosDesdeIds(request.getProductoIds());
@@ -67,8 +83,36 @@ public class TemporadaService {
     @Transactional
     public void eliminarTemporada(Long id) {
         Temporada temporada = obtenerPorId(id);
+        boolean eraActiva = Boolean.TRUE.equals(temporada.getActiva());
         temporada.getProductos().clear();
         temporadaRepository.delete(temporada);
+
+        if (eraActiva) {
+            temporadaRepository.flush();
+        }
+    }
+
+    @Transactional
+    public Temporada seleccionarTemporadaActiva(Long temporadaId) {
+        Temporada temporada = obtenerPorId(temporadaId);
+
+        temporadaRepository.findByActivaTrue().ifPresent(actual -> {
+            if (!actual.getId().equals(temporadaId)) {
+                actual.setActiva(false);
+                temporadaRepository.save(actual);
+            }
+        });
+
+        temporada.setActiva(true);
+        return temporadaRepository.save(temporada);
+    }
+
+    @Transactional
+    public void desactivarTemporadaActiva() {
+        temporadaRepository.findByActivaTrue().ifPresent(actual -> {
+            actual.setActiva(false);
+            temporadaRepository.save(actual);
+        });
     }
 
     private void validarNombre(String nombre) {
@@ -94,7 +138,7 @@ public class TemporadaService {
     }
 
     public List<Producto> obtenerProductosDeTemporada(Long temporadaId) {
-        Temporada temporada = obtenerPorId(temporadaId);
+        Temporada temporada = obtenerPorIdConProductos(temporadaId);
         return new ArrayList<>(temporada.getProductos());
     }
 }

@@ -42,6 +42,10 @@ export class ManageProductsPageComponent implements OnInit {
     productoIds: [] as number[]
   };
   guardandoTemporada = false;
+  temporadaActivaId: number | null = null;
+  actualizandoTemporadaActiva = false;
+  temporadaActivaMensaje?: string;
+  temporadaActivaError?: string;
 
   constructor(
     private productsService: ProductsService,
@@ -155,6 +159,9 @@ export class ManageProductsPageComponent implements OnInit {
         this.temporadas = temporadas.sort((a, b) => a.nombre.localeCompare(b.nombre));
         this.temporadasLoading = false;
 
+        const activa = this.temporadas.find(t => t.activa);
+        this.temporadaActivaId = activa ? activa.id : null;
+
         if (this.temporadaForm.id != null) {
           const seleccionada = this.temporadas.find(t => t.id === this.temporadaForm.id);
           if (seleccionada) {
@@ -167,6 +174,35 @@ export class ManageProductsPageComponent implements OnInit {
         console.error('Error al cargar temporadas:', error);
         this.temporadasError = 'No pudimos cargar las temporadas. Intenta más tarde.';
         this.temporadasLoading = false;
+      }
+    });
+  }
+
+  onCambiarTemporadaActiva(nuevoValor: number | null): void {
+    const valorAnterior = this.temporadaActivaId;
+    this.temporadaActivaId = nuevoValor;
+    this.actualizandoTemporadaActiva = true;
+    this.temporadaActivaMensaje = undefined;
+    this.temporadaActivaError = undefined;
+
+    this.temporadasService.setActive(nuevoValor).subscribe({
+      next: (temporada) => {
+        this.actualizandoTemporadaActiva = false;
+        this.temporadaActivaId = temporada ? temporada.id : null;
+        this.temporadaActivaMensaje = temporada
+          ? `Catálogo filtrado por "${temporada.nombre}"`
+          : 'Catálogo mostrando todos los artículos';
+        this.loadTemporadas();
+        setTimeout(() => {
+          this.temporadaActivaMensaje = undefined;
+        }, 4000);
+      },
+      error: (error) => {
+        console.error('Error al actualizar la temporada activa:', error);
+        this.actualizandoTemporadaActiva = false;
+        this.temporadaActivaError = error?.error?.error || 'No se pudo actualizar la temporada activa';
+        this.temporadaActivaId = valorAnterior ?? null;
+        this.loadTemporadas();
       }
     });
   }

@@ -193,6 +193,13 @@ export class OrderDetailPageComponent implements OnInit {
     }).format(monto);
   }
 
+  getCantidadItems(): number {
+    if (!this.pedido || !Array.isArray(this.pedido.items)) {
+      return 0;
+    }
+    return this.pedido.items.length;
+  }
+
   getEstadoClass(estado: EstadoPedido): string {
     switch (estado) {
       case EstadoPedido.PENDIENTE:

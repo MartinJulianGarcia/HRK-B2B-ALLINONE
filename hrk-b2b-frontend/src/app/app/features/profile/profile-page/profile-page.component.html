@@ -84,7 +84,7 @@
             <span>Ver productos ocultos</span>
           </label>
         </div>
-        <div class="info-row">
+        <div class="info-row" *ngIf="!editando && mostrarBotonCambioRol">
           <button class="btn btn-secondary" (click)="cambiarRol()">
             Cambiar a {{ user?.tipoUsuario === 'CLIENTE' ? 'ADMIN' : 'CLIENTE' }}
           </button>

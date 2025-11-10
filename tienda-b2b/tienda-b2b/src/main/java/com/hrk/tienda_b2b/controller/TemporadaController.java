@@ -1,5 +1,6 @@
 package com.hrk.tienda_b2b.controller;
 
+import com.hrk.tienda_b2b.dto.SeleccionTemporadaRequest;
 import com.hrk.tienda_b2b.dto.TemporadaRequest;
 import com.hrk.tienda_b2b.dto.TemporadaResponseDTO;
 import com.hrk.tienda_b2b.model.Temporada;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -25,6 +27,14 @@ public class TemporadaController {
                 .map(this::mapearADTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(temporadas);
+    }
+
+    @GetMapping("/activa")
+    public ResponseEntity<TemporadaResponseDTO> obtenerTemporadaActiva() {
+        Optional<Temporada> temporadaActiva = temporadaService.obtenerTemporadaActiva();
+        return temporadaActiva
+                .map(temporada -> ResponseEntity.ok(mapearADTO(temporada)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/{id}")
@@ -46,6 +56,17 @@ public class TemporadaController {
         return ResponseEntity.ok(mapearADTO(temporada));
     }
 
+    @PutMapping("/activa")
+    public ResponseEntity<?> seleccionarTemporadaActiva(@RequestBody SeleccionTemporadaRequest request) {
+        if (request.getTemporadaId() == null) {
+            temporadaService.desactivarTemporadaActiva();
+            return ResponseEntity.noContent().build();
+        }
+
+        Temporada temporada = temporadaService.seleccionarTemporadaActiva(request.getTemporadaId());
+        return ResponseEntity.ok(mapearADTO(temporada));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarTemporada(@PathVariable Long id) {
         temporadaService.eliminarTemporada(id);
@@ -53,6 +74,7 @@ public class TemporadaController {
     }
 
     private TemporadaResponseDTO mapearADTO(Temporada temporada) {
+        temporada.getProductos().size();
         return TemporadaResponseDTO.builder()
                 .id(temporada.getId())
                 .nombre(temporada.getNombre())
@@ -61,6 +83,7 @@ public class TemporadaController {
                                 .map(producto -> producto.getId())
                                 .collect(Collectors.toList())
                 )
+                .activa(Boolean.TRUE.equals(temporada.getActiva()))
                 .build();
     }
 }

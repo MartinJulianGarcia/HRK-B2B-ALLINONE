@@ -11,6 +11,7 @@ public class TemporadaResponseDTO {
     private Long id;
     private String nombre;
     private List<Long> productoIds;
+    private boolean activa;
 }
 
 

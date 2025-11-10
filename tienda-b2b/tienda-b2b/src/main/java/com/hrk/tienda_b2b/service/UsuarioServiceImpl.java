@@ -104,4 +104,25 @@ public class UsuarioServiceImpl implements UsuarioService {
     public boolean existeCuit(String cuit) {
         return usuarioRepository.existsByCuit(cuit);
     }
+
+    @Override
+    public boolean existeAdministradorActivo() {
+        return usuarioRepository.existsByTipoUsuarioAndActivoTrue(TipoUsuario.ADMIN);
+    }
+
+    @Override
+    public boolean puedeCambiarRolAAdmin(Long usuarioId) {
+        if (usuarioId == null) {
+            return false;
+        }
+
+        if (existeAdministradorActivo()) {
+            return false;
+        }
+
+        return usuarioRepository.findFirstByActivoTrueOrderByFechaCreacionAsc()
+                .or(() -> usuarioRepository.findFirstByActivoTrueOrderByIdAsc())
+                .map(usuario -> usuario.getId().equals(usuarioId))
+                .orElse(false);
+    }
 }

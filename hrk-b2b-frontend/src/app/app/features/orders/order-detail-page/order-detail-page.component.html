@@ -198,7 +198,7 @@
 
     <!-- Items del pedido -->
     <div class="items-card">
-      <h3>Items del Pedido ({{ pedido.items?.length || 0 }})</h3>
+      <h3>Items del Pedido ({{ getCantidadItems() }})</h3>
       
       <div *ngIf="!pedido.items || pedido.items.length === 0" class="no-items">
         <p>No se encontraron items para este pedido.</p>

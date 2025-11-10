@@ -99,6 +99,36 @@
         </div>
       </div>
 
+      <div class="card active-season-card">
+        <h2>Temporada visible en el catálogo</h2>
+        <p>Elegí qué temporada se muestra en la tienda pública. Si elegís “Todos los artículos”, se mostrará el catálogo completo.</p>
+
+        <div class="selector-group">
+          <label for="temporada-activa-select">Temporada activa</label>
+          <select
+            id="temporada-activa-select"
+            [disabled]="actualizandoTemporadaActiva || temporadasLoading"
+            [ngModel]="temporadaActivaId"
+            (ngModelChange)="onCambiarTemporadaActiva($event)"
+          >
+            <option [ngValue]="null">Todos los artículos</option>
+            <option *ngFor="let temporada of temporadas" [ngValue]="temporada.id">
+              {{ temporada.nombre }}
+            </option>
+          </select>
+        </div>
+
+        <div class="state-message info" *ngIf="actualizandoTemporadaActiva">
+          Actualizando temporada activa...
+        </div>
+        <div class="state-message success" *ngIf="!actualizandoTemporadaActiva && temporadaActivaMensaje">
+          {{ temporadaActivaMensaje }}
+        </div>
+        <div class="state-message error" *ngIf="temporadaActivaError">
+          {{ temporadaActivaError }}
+        </div>
+      </div>
+
     <div class="card seasons-card">
       <div class="seasons-header">
         <div>

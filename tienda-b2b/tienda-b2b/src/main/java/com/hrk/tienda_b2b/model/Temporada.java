@@ -31,6 +31,10 @@ public class Temporada {
     @Builder.Default
     private Set<Producto> productos = new HashSet<>();
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean activa = false;
+
     public void agregarProducto(Producto producto) {
         if (producto != null) {
             productos.add(producto);

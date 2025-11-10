@@ -14,6 +14,7 @@ import com.hrk.tienda_b2b.repository.MovimientoStockRepository;
 import com.hrk.tienda_b2b.repository.ProductoRepository;
 import com.hrk.tienda_b2b.repository.ProductoVarianteRepository;
 import com.hrk.tienda_b2b.repository.StockHistoricoRepository;
+import com.hrk.tienda_b2b.repository.TemporadaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,17 +35,32 @@ public class ProductoService {
     private final MovimientoStockRepository movimientoStockRepository;
     private final DetallePedidoRepository detallePedidoRepository;
     private final StockHistoricoRepository stockHistoricoRepository;
+    private final TemporadaRepository temporadaRepository;
 
     public List<Producto> obtenerTodos() {
         return obtenerTodos(false);
     }
     
     public List<Producto> obtenerTodos(boolean incluirOcultos) {
-        if (incluirOcultos) {
-            return productoRepository.findAll();
-        } else {
-            return productoRepository.findByOcultoFalse();
-        }
+        List<Producto> productos = incluirOcultos
+                ? productoRepository.findAll()
+                : productoRepository.findByOcultoFalse();
+
+        return temporadaRepository.findActiveWithProductos()
+                .map(temporadaActiva -> {
+                    Set<Long> productIds = temporadaActiva.getProductos().stream()
+                            .map(Producto::getId)
+                            .collect(Collectors.toSet());
+
+                    if (productIds.isEmpty()) {
+                        return new ArrayList<Producto>();
+                    }
+
+                    return productos.stream()
+                            .filter(producto -> productIds.contains(producto.getId()))
+                            .collect(Collectors.toList());
+                })
+                .orElse(productos);
     }
 
     public List<Producto> obtenerPorCategoria(Categoria categoria) {

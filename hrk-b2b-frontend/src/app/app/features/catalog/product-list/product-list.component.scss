@@ -340,6 +340,12 @@ h2 {
   margin-top: 15px;
   padding-top: 15px;
   border-top: 1px solid #e1e5e9;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 220px;
+  max-width: 100%;
 }
 
 .edit-product-btn {
@@ -352,8 +358,13 @@ h2 {
   font-size: 14px;
   font-weight: 600;
   transition: all 0.3s ease;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 220px;
   box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+  white-space: nowrap;
 }
 
 .edit-product-btn:hover {

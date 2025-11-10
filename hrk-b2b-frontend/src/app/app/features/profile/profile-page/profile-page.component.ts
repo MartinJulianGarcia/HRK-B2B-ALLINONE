@@ -26,6 +26,8 @@ export class ProfilePageComponent implements OnInit {
   codigoValidacion = ''; // Código ingresado por el usuario
   errorCodigo = ''; // Error del código
   private readonly CODIGO_ADMIN = 'cascuino'; // Código hardcodeado para cambio a admin
+  mostrarBotonCambioRol = false;
+  verificandoPermisoCambioRol = false;
 
   constructor(
     public authService: AuthService,
@@ -47,6 +49,7 @@ export class ProfilePageComponent implements OnInit {
       this.user = userData;
       // Simular fecha de registro (en un caso real vendría del backend)
       this.memberSince = this.getMemberSince();
+      this.actualizarDisponibilidadCambioRol();
     } else {
       // Si no hay usuario logueado, redirigir al login
       this.router.navigate(['/login']);
@@ -206,10 +209,30 @@ export class ProfilePageComponent implements OnInit {
       next: (usuarioActualizado) => {
         this.user = usuarioActualizado;
         alert(`Rol cambiado exitosamente a ${nuevoRol}`);
+        this.actualizarDisponibilidadCambioRol();
       },
       error: (error) => {
         console.error('Error al cambiar rol:', error);
         alert('Error al cambiar el rol. Inténtalo de nuevo.');
+      }
+    });
+  }
+
+  private actualizarDisponibilidadCambioRol(): void {
+    if (!this.user) {
+      this.mostrarBotonCambioRol = false;
+      return;
+    }
+
+    this.verificandoPermisoCambioRol = true;
+    this.authService.puedeCambiarRolAAdmin(this.user.id).subscribe({
+      next: (permitido) => {
+        this.mostrarBotonCambioRol = permitido && this.user?.tipoUsuario !== 'ADMIN';
+        this.verificandoPermisoCambioRol = false;
+      },
+      error: () => {
+        this.mostrarBotonCambioRol = false;
+        this.verificandoPermisoCambioRol = false;
       }
     });
   }
