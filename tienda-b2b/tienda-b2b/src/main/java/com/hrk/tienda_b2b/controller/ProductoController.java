@@ -4,7 +4,6 @@ import com.hrk.tienda_b2b.dto.CreateProductoRequest;
 import com.hrk.tienda_b2b.dto.ProductoResponseDTO;
 import com.hrk.tienda_b2b.dto.VerificacionActualizacionProductoResponse;
 import com.hrk.tienda_b2b.model.Producto;
-import com.hrk.tienda_b2b.model.ProductoVariante;
 import com.hrk.tienda_b2b.service.ProductoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -159,7 +158,7 @@ public class ProductoController {
                     .nombre(producto.getNombre())
                     .descripcion(producto.getDescripcion())
                     .tipo(producto.getTipo())
-                    .imagenUrl(producto.getImagenUrl())
+                    .imagenUrl(normalizarImagenUrl(producto.getImagenUrl()))
                     .categoria(producto.getCategoria())
                     .oculto(producto.getOculto() != null ? producto.getOculto() : false)
                     .variantes(variantesDTO)
@@ -169,6 +168,34 @@ public class ProductoController {
             e.printStackTrace();
             throw new RuntimeException("Error al convertir producto a DTO: " + e.getMessage(), e);
         }
+    }
+
+    private String normalizarImagenUrl(String imagenUrl) {
+        if (imagenUrl == null || imagenUrl.isBlank()) {
+            return imagenUrl;
+        }
+
+        try {
+            if (imagenUrl.startsWith("http://") || imagenUrl.startsWith("https://")) {
+                java.net.URI uri = java.net.URI.create(imagenUrl);
+                String host = uri.getHost();
+
+                if (host != null && (host.equals("localhost") || host.equals("127.0.0.1") || host.endsWith(".local"))) {
+                    String path = uri.getPath();
+                    if (path != null && !path.isBlank()) {
+                        return path.startsWith("/uploads/") ? path : "/uploads" + (path.startsWith("/") ? path : "/" + path);
+                    }
+                }
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Si la URL es inválida, devolvemos tal cual para no romper la respuesta
+        }
+
+        if (imagenUrl.contains("/uploads/")) {
+            return imagenUrl.substring(imagenUrl.indexOf("/uploads/"));
+        }
+
+        return imagenUrl;
     }
 
     @GetMapping("/{id}/verificar-pedidos")

@@ -46,6 +46,31 @@ export class ProductsService {
     // Si la URL ya es completa, la devolvemos tal como está
     if (imageUrl.startsWith('http')) {
       console.log('🔍 [FRONTEND] URL completa detectada:', imageUrl);
+      try {
+        const parsed = new URL(imageUrl);
+        const isLocalHost =
+          parsed.hostname === 'localhost' ||
+          parsed.hostname === '127.0.0.1' ||
+          parsed.hostname.endsWith('.local');
+
+        if (isLocalHost) {
+          const normalizedPath = parsed.pathname.startsWith('/uploads/')
+            ? parsed.pathname
+            : `/uploads/${parsed.pathname.replace(/^\//, '')}`;
+          const rebuiltUrl = `${BACKEND_BASE_URL}${normalizedPath}`;
+          console.log(
+            '🔍 [FRONTEND] URL localhost detectada, reconstruyendo hacia el backend actual:',
+            rebuiltUrl
+          );
+          return rebuiltUrl;
+        }
+      } catch (error) {
+        console.warn(
+          '🟡 [FRONTEND] No se pudo parsear la URL completa, se usa tal cual:',
+          error
+        );
+      }
+
       return imageUrl;
     }
     

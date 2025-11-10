@@ -1,0 +1,224 @@
+<div class="manage-products-page">
+  <!-- Header reutilizado -->
+  <div class="home-header">
+    <div class="header-left">
+      <div class="logo" (click)="goToCatalog()">
+        <div class="logo-symbol">
+          <img src="/HIRKUM-MONOGRAMA-B.jpg" alt="HIRKUM Logo" class="logo-image">
+        </div>
+        <span>HRK</span>
+      </div>
+      <nav class="main-nav">
+        <a (click)="goToCatalog()" class="nav-item">SHOP</a>
+        <a (click)="goToCatalog()" class="nav-item sale">SALE</a>
+        <a (click)="goToInfo()" class="nav-item info">info</a>
+      </nav>
+    </div>
+
+    <div class="header-right">
+      <button class="icon-btn cart-icon" title="Carrito" (click)="goToCart()">
+        🛒
+        <span *ngIf="cartItemCount > 0" class="cart-badge">{{ cartItemCount }}</span>
+      </button>
+      <button class="icon-btn search-icon" title="Buscar" (click)="openSearchModal()">
+        🔍
+      </button>
+      <button class="icon-btn history-btn" title="Historial de pedidos" (click)="goToHistory()">
+        📋
+      </button>
+      <button class="icon-btn user-icon" title="Perfil de Usuario" (click)="goToProfile()">
+        <img src="/images/user-icon.png" alt="Usuario" class="user-icon-img"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+        <span class="user-icon-fallback" style="display:none;">👤</span>
+      </button>
+      <button class="logout-btn" (click)="logout()" title="Cerrar Sesión">
+        Cerrar Sesión
+      </button>
+    </div>
+  </div>
+
+  <div class="manage-products-container">
+    <div class="page-header">
+      <button class="back-btn" (click)="goBack()" title="Volver">
+        ←
+      </button>
+      <div class="page-heading">
+        <h1>Gestionar artículos</h1>
+        <p>Creá nuevos artículos o abrí el formulario de edición sin pasar por el catálogo.</p>
+      </div>
+    </div>
+
+    <div class="cards-wrapper">
+      <div class="card create-card">
+        <h2>Crear nuevo artículo</h2>
+        <p>Accedé al mismo formulario que ofrece el catálogo para cargar un artículo desde cero.</p>
+        <button class="btn btn-new-article" (click)="createNewProduct()">
+          <span class="icon">➕</span>
+          <span>Nuevo artículo</span>
+        </button>
+      </div>
+
+      <div class="card edit-card">
+        <h2>Editar artículo existente</h2>
+        <p>Elegí un artículo del listado y te llevamos directo al editor para actualizar sus datos.</p>
+
+        <div class="selector-group">
+          <label for="producto-select">Seleccioná un artículo</label>
+          <select
+            id="producto-select"
+            [disabled]="isProductSelectDisabled"
+            (change)="onSelectProduct($event)"
+            [value]="selectedProductId ?? ''"
+            [attr.size]="selectVisibleRows"
+          >
+            <option value="">-- Elegir artículo --</option>
+            <option *ngFor="let producto of productos" [value]="producto.id">
+              {{ producto.nombre }} (ID {{ producto.id }})
+            </option>
+          </select>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn btn-edit-article" (click)="editSelectedProduct()" [disabled]="!selectedProductId">
+            <span class="icon">✏️</span>
+            <span>Modificar artículo</span>
+          </button>
+          <button class="btn btn-outline" type="button" (click)="refreshProducts()" [disabled]="loading">
+            Actualizar listado
+          </button>
+        </div>
+
+        <div class="state-message" *ngIf="loading">
+          Cargando artículos...
+        </div>
+        <div class="state-message error" *ngIf="error">
+          {{ error }}
+        </div>
+        <div class="state-message info" *ngIf="!loading && !error && productos.length === 0">
+          Aún no hay artículos cargados. Creá uno nuevo para comenzar.
+        </div>
+      </div>
+
+    <div class="card seasons-card">
+      <div class="seasons-header">
+        <div>
+          <h2>Temporadas</h2>
+          <p>Organizá colecciones para aplicar filtros en el catálogo.</p>
+        </div>
+        <button class="btn btn-outline" type="button" (click)="iniciarCreacionTemporada()">
+          Nueva temporada
+        </button>
+      </div>
+
+      <div class="temporadas-content">
+        <div class="season-list">
+          <div class="state-message" *ngIf="temporadasLoading">
+            Cargando temporadas...
+          </div>
+          <div class="state-message error" *ngIf="temporadasError">
+            {{ temporadasError }}
+          </div>
+          <div *ngIf="!temporadasLoading && !temporadasError">
+            <div *ngIf="temporadas.length === 0" class="empty-state">
+              Aún no creaste temporadas. Empezá agregando una nueva.
+            </div>
+            <ul *ngIf="temporadas.length > 0">
+              <li *ngFor="let temporada of temporadas" [class.active]="temporadaForm.id === temporada.id">
+                <div class="season-info">
+                  <h3>{{ temporada.nombre }}</h3>
+                  <span class="count-badge">{{ temporada.productoIds.length }} artículos</span>
+                </div>
+                <div class="season-actions">
+                  <button type="button" class="link-btn" (click)="editarTemporada(temporada)">Editar</button>
+                  <button type="button" class="link-btn delete" (click)="eliminarTemporada(temporada.id, temporada.nombre)">
+                    Eliminar
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="season-form">
+          <h3>{{ temporadaForm.id ? 'Editar temporada' : 'Nueva temporada' }}</h3>
+          <div class="form-group">
+            <label for="temporada-nombre">Nombre</label>
+            <input
+              id="temporada-nombre"
+              type="text"
+              [(ngModel)]="temporadaForm.nombre"
+              placeholder="Ej: Primavera 2025"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="temporada-productos">Artículos incluidos</label>
+            <select
+              id="temporada-productos"
+              multiple
+              [attr.size]="selectVisibleRows"
+              [(ngModel)]="temporadaForm.productoIds"
+            >
+              <option
+                *ngFor="let producto of productos"
+                [value]="producto.id"
+              >
+                {{ producto.nombre }} (ID {{ producto.id }})
+              </option>
+            </select>
+            <small class="helper-text">
+              Mantené presionada la tecla Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples artículos.
+            </small>
+          </div>
+
+          <button
+            class="btn btn-edit-article"
+            type="button"
+            (click)="guardarTemporada()"
+            [disabled]="guardandoTemporada"
+          >
+            <span *ngIf="!guardandoTemporada">Guardar temporada</span>
+            <span *ngIf="guardandoTemporada">Guardando...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Modal de búsqueda -->
+  <div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
+    <div class="search-modal" (click)="$event.stopPropagation()">
+      <div class="search-header">
+        <h3>Buscar artículos o elementos de la página</h3>
+        <button class="close-btn" (click)="closeSearchModal()">×</button>
+      </div>
+      <div class="search-input-container">
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (input)="performSearch()"
+          placeholder="Escribí el nombre del artículo o texto a buscar..."
+          class="search-input"
+          autofocus
+        >
+      </div>
+      <div class="search-results" *ngIf="searchResults.length > 0">
+        <div class="search-result-item"
+             *ngFor="let result of searchResults"
+             (click)="scrollToResult(result)">
+          <div class="result-type">
+            {{ result.type === 'producto' ? '👕' : '📄' }}
+          </div>
+          <div class="result-content">
+            <div class="result-title">{{ result.title }}</div>
+            <div class="result-description">{{ result.description }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="no-results" *ngIf="searchTerm && searchResults.length === 0">
+        <p>No se encontraron resultados para "{{ searchTerm }}"</p>
+      </div>
+    </div>
+  </div>
+</div>
