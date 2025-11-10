@@ -141,6 +141,10 @@ export class ProfilePageComponent implements OnInit {
     this.router.navigate(['/dashboards']);
   }
 
+  goToManageProducts(): void {
+    this.router.navigate(['/manage-products']);
+  }
+
   toggleVerProductosOcultos(event: any): void {
     this.verProductosOcultos = event.target.checked;
     // Guardar preferencia en localStorage

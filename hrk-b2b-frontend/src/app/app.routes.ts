@@ -13,6 +13,7 @@ import { DevolucionPageComponent } from './app/features/orders/devolucion-page/d
 import { AddProductPageComponent } from './app/features/admin/add-product-page/add-product-page.component';
 import { EditProductPageComponent } from './app/features/admin/edit-product-page/edit-product-page.component';
 import { DashboardsPageComponent } from './app/features/dashboards/dashboards-page/dashboards-page.component';
+import { ManageProductsPageComponent } from './app/features/admin/manage-products-page/manage-products-page.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -28,5 +29,6 @@ export const routes: Routes = [
   { path: 'devolucion', component: DevolucionPageComponent },
   { path: 'add-product', component: AddProductPageComponent },
   { path: 'edit-product/:id', component: EditProductPageComponent },
-  { path: 'dashboards', component: DashboardsPageComponent }
+  { path: 'dashboards', component: DashboardsPageComponent },
+  { path: 'manage-products', component: ManageProductsPageComponent }
 ];

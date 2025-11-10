@@ -37,6 +37,10 @@
           <span class="btn-text">Ver métricas del negocio</span>
           <span class="icon-chart">📊</span>
         </button>
+        <button class="btn btn-dashboard" (click)="goToManageProducts()" *ngIf="!editando && authService.isAdmin()">
+          <span class="btn-text">Gestionar artículos</span>
+          <span class="icon-manage">👗</span>
+        </button>
         <button class="btn btn-outline" (click)="logout()" *ngIf="!editando">
           Cerrar Sesión
         </button>
