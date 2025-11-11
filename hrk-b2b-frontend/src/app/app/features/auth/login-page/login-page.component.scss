@@ -181,6 +181,48 @@
   text-decoration: underline;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+.modal-dialog {
+  background: white;
+  padding: 24px 28px;
+  border-radius: 12px;
+  max-width: 360px;
+  width: calc(100% - 40px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  h3 {
+    margin: 0;
+    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: #555;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .btn {
+    margin-top: 8px;
+  }
+}
+
 .recuperacion-section {
   margin-top: 2rem;
   padding: 1.5rem;

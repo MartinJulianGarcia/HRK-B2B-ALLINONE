@@ -18,7 +18,8 @@ export enum Categoria {
   MITONES = 'mitones',
   CAMPERA = 'campera',
   TOP = 'top',
-  CHALECO = 'chaleco'
+  CHALECO = 'chaleco',
+  CAMISA = 'camisa'
 }
 
 export const CATEGORIAS = Object.values(Categoria);

@@ -24,6 +24,8 @@ export class RegisterPageComponent {
   error = '';
   passwordsMatch = false;
   cuitValid = false;
+  mostrarModal = false;
+  modalMensaje = '';
 
   constructor(
     private authService: AuthService,
@@ -94,14 +96,14 @@ export class RegisterPageComponent {
     // Verificar que el CUIT sea válido (exactamente 11 dígitos)
     if (!this.cuitValid) {
       this.error = 'El CUIT debe tener exactamente 11 dígitos (formato: 00000000000 a 99999999999)';
-      this.showErrorMessage('El CUIT debe tener exactamente 11 dígitos numéricos.');
+      this.abrirModal('El CUIT debe tener exactamente 11 dígitos numéricos.');
       return;
     }
 
     // Verificar que las contraseñas coincidan
     if (this.userData.password !== this.password2) {
       this.error = 'Las contraseñas no coinciden';
-      this.showErrorMessage('Las contraseñas no coinciden. Por favor, verifica que ambas contraseñas sean iguales.');
+      this.abrirModal('Las contraseñas no coinciden. Por favor, verifica que ambas contraseñas sean iguales.');
       return;
     }
 
@@ -122,7 +124,7 @@ export class RegisterPageComponent {
           },
           error: (err) => {
             this.error = 'Usuario creado pero error al iniciar sesión';
-            this.showErrorMessage('Usuario creado pero error al iniciar sesión');
+            this.abrirModal('Usuario creado pero error al iniciar sesión');
             this.clearForm();
             console.log('Auto-login error:', err);
           }
@@ -131,15 +133,21 @@ export class RegisterPageComponent {
       error: (err) => {
         this.loading = false;
         this.error = err.message || 'Error al registrar usuario';
-        this.showErrorMessage('Error al registrar usuario. Por favor, verifica los datos ingresados.');
+        this.abrirModal(this.error);
         this.clearForm();
         console.log('Register error:', err);
       }
     });
   }
 
-  showErrorMessage(message: string): void {
-    alert(message);
+  abrirModal(mensaje: string): void {
+    this.modalMensaje = mensaje;
+    this.mostrarModal = true;
+  }
+
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.modalMensaje = '';
   }
 
   clearForm(): void {

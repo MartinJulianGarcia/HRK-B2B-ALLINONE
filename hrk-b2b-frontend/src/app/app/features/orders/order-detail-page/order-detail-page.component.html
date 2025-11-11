@@ -60,7 +60,12 @@
     <!-- Información básica del pedido -->
     <div class="order-info-card">
       <div class="info-header">
-        <h2>Pedido #{{ pedido.id }}</h2>
+        <div class="title-group">
+          <h2>Pedido #{{ pedido.id }}</h2>
+          <button class="download-pdf-btn" (click)="descargarPDF()">
+            ⬇️ Descargar PDF
+          </button>
+        </div>
         <span [class]="getEstadoClass(pedido.estado)" class="current-status">
           {{ pedido.estado }}
         </span>

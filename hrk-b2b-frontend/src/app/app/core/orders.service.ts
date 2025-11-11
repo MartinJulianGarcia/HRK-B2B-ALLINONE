@@ -54,6 +54,7 @@ export interface Pedido {
     id: number;
     nombreRazonSocial: string;
     email?: string;
+    cuit?: string;
   };
   tipoDevolucion?: TipoDevolucion; // Solo para devoluciones
 }
@@ -83,6 +84,7 @@ export interface PedidoResponseDTO {
     id: number;
     nombreRazonSocial: string;
     email?: string;
+    cuit?: string;
   };
   items?: {
     id: number;

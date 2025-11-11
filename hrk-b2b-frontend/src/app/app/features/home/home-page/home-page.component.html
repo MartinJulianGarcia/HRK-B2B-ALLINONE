@@ -184,6 +184,14 @@
   </div>
 </div>
 
+<div class="modal-overlay" *ngIf="mostrarModal" (click)="cerrarModal()">
+  <div class="modal-dialog" [class.success]="modalEsExito" (click)="$event.stopPropagation()">
+    <h3>{{ modalEsExito ? 'Operación exitosa' : 'Aviso' }}</h3>
+    <pre class="modal-message">{{ modalMensaje }}</pre>
+    <button type="button" class="btn-secondary" (click)="cerrarModal()">Aceptar</button>
+  </div>
+</div>
+
 <!-- Modal de búsqueda -->
 <div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
   <div class="search-modal" (click)="$event.stopPropagation()">

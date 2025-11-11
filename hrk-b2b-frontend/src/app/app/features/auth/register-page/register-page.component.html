@@ -62,7 +62,7 @@
           #cuit="ngModel"
         >
         <div *ngIf="cuit.touched && !cuitValid && cuitFormatted.length > 0" class="error">
-          El CUIT debe tener exactamente 11 dígitos numéricos (00000000000 a 99999999999)
+          CUIT inválido
         </div>
         <div *ngIf="cuit.touched && cuitFormatted === ''" class="error">
           El CUIT es requerido
@@ -133,6 +133,14 @@
     <div class="register-footer">
       <p>¿Ya tenes cuenta? <a routerLink="/login">Iniciar sesion</a></p>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="mostrarModal">
+  <div class="modal-dialog">
+    <h3>Aviso</h3>
+    <p>{{ modalMensaje }}</p>
+    <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Aceptar</button>
   </div>
 </div>
 

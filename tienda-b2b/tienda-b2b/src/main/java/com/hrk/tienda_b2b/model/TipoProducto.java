@@ -20,7 +20,8 @@ public enum TipoProducto {
     MITONES("mitones.jpg"),
     CAMPERA("campera.jpg"),
     TOP("top.jpg"),
-    CHALECO("chaleco.jpg");
+    CHALECO("chaleco.jpg"),
+    CAMISA("camisa.jpg");
 
     private final String imagenDefault;
 

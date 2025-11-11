@@ -214,6 +214,7 @@ public class PedidoController {
                                     .id(pedido.getUsuario() != null ? pedido.getUsuario().getId() : 1L)
                                     .nombreRazonSocial(usuarioInfo.getNombreRazonSocial())
                                     .email(usuarioInfo.getEmail())
+                                    .cuit(usuarioInfo.getCuit())
                                     .build() :
                             // Si no hay usuarioInfo, usar la información del usuario del pedido
                             pedido.getUsuario() != null ?
@@ -221,6 +222,7 @@ public class PedidoController {
                                             .id(pedido.getUsuario().getId())
                                             .nombreRazonSocial(pedido.getUsuario().getNombreRazonSocial())
                                             .email(pedido.getUsuario().getEmail())
+                                            .cuit(pedido.getUsuario().getCuit())
                                             .build() : null)
                     .build();
 

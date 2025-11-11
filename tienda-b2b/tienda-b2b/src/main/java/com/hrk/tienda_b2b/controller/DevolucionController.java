@@ -203,6 +203,7 @@ public class DevolucionController {
                                     .id(pedido.getUsuario().getId())
                                     .nombreRazonSocial(pedido.getUsuario().getNombreRazonSocial())
                                     .email(pedido.getUsuario().getEmail())
+                                    .cuit(pedido.getUsuario().getCuit())
                                     .build() : null)
                     .detalles(detallesDTO)
                     .build();

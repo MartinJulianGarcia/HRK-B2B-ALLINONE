@@ -666,6 +666,65 @@
   font-style: italic;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  backdrop-filter: blur(2px);
+}
+
+.modal-dialog {
+  background: white;
+  padding: 24px 28px;
+  border-radius: 12px;
+  max-width: 360px;
+  width: calc(100% - 48px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  h3 {
+    margin: 0;
+    color: #333;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .modal-message {
+    margin: 0;
+    color: #444;
+    font-size: 16px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  .btn-secondary {
+    align-self: center;
+    padding: 10px 26px;
+    border-radius: 6px;
+    background: #5f6f7f;
+    border: none;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+
+    &:hover {
+      background: #4b5865;
+    }
+  }
+
+  &.success {
+    border: 1px solid #28a745;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .header-left {

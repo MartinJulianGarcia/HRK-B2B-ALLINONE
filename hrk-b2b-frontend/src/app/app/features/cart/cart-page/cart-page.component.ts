@@ -23,6 +23,11 @@ export class CartPageComponent implements OnInit {
   cantidadItems = 0;
   cartItemCount = 0; // Contador de items en el carrito
   
+  mostrarModal = false;
+  modalMensaje = '';
+  modalEsExito = false;
+  procesandoPedido = false;
+
   // Modal de método de pago
   showPaymentModal = false;
   selectedPaymentMethod: string = '';
@@ -108,13 +113,13 @@ export class CartPageComponent implements OnInit {
 
   generarPedido(): void {
     if (this.carritoItems.length === 0) {
-      alert('El carrito está vacío');
+      this.abrirModal('El carrito está vacío');
       return;
     }
 
     // Validar selección de usuario para administradores
     if (this.isAdmin && !this.selectedUserId) {
-      alert('Por favor selecciona un cliente para generar el pedido');
+      this.abrirModal('Por favor selecciona un cliente para generar el pedido');
       return;
     }
 
@@ -124,15 +129,20 @@ export class CartPageComponent implements OnInit {
 
   // Confirmar pedido con método de pago seleccionado
   confirmarPedidoConPago(): void {
+    if (this.procesandoPedido) {
+      return;
+    }
+
     // Si es MercadoPago, primero crear el pedido y luego la preferencia
     if (this.selectedPaymentMethod === 'mercadopago') {
+      this.procesandoPedido = true;
       this.procesarMercadoPago();
       return;
     }
 
     // Para otros métodos de pago, flujo normal
     if (!this.selectedPaymentMethod) {
-      alert('Por favor selecciona un método de pago');
+      this.abrirModal('Por favor selecciona un método de pago');
       return;
     }
 
@@ -153,7 +163,7 @@ export class CartPageComponent implements OnInit {
         // Si no hay usuario seleccionado, usar el admin actual
         const currentUser = this.authService.getCurrentUser();
         if (!currentUser?.id) {
-          alert('Error: No se pudo identificar al usuario');
+          this.abrirModal('Error: No se pudo identificar al usuario');
           return;
         }
         clienteId = currentUser.id;
@@ -167,7 +177,7 @@ export class CartPageComponent implements OnInit {
       // Para clientes normales, usar el usuario actual
       const currentUser = this.authService.getCurrentUser();
       if (!currentUser?.id) {
-        alert('Error: No se pudo identificar al cliente');
+        this.abrirModal('Error: No se pudo identificar al cliente');
         return;
       }
       clienteId = currentUser.id;
@@ -200,6 +210,7 @@ export class CartPageComponent implements OnInit {
     // Guardar método de pago antes de limpiar
     const metodoPagoLabel = this.getPaymentMethodLabel();
     
+    this.procesandoPedido = true;
     this.orders.crearPedido(clienteId, items, this.selectedPaymentMethod, usuarioInfo).subscribe({
       next: (pedido) => {
         console.log('🔵 [CART] Pedido creado exitosamente:', pedido);
@@ -218,7 +229,8 @@ export class CartPageComponent implements OnInit {
           this.showPaymentModal = false;
           this.selectedPaymentMethod = '';
           
-          alert(`✅ Pedido generado exitosamente en el sistema.\nNúmero de pedido: ${pedido.id}\nMétodo de pago: ${metodoPagoLabel}\nTotal: $${pedido.montoTotal.toLocaleString()}`);
+          this.abrirModal(`✅ Pedido generado exitosamente en el sistema.\nNúmero de pedido: ${pedido.id}\nMétodo de pago: ${metodoPagoLabel}\nTotal: $${pedido.montoTotal.toLocaleString()}`, true);
+          this.procesandoPedido = false;
           
           // Redirigir al historial
           this.router.navigate(['/orders-history']);
@@ -226,11 +238,10 @@ export class CartPageComponent implements OnInit {
           // Si es mock data, mostrar mensaje diferente
           console.log('🟡 [CART] Pedido creado con datos mock debido a error del backend');
           console.log('🟡 [CART] ID negativo detectado, no limpiando carrito');
-          console.log('🟡 [CART] Mostrando alert al usuario...');
-          
-          // Usar setTimeout para asegurar que el alert se ejecute correctamente
+          console.log('🟡 [CART] Mostrando modal al usuario...');
           setTimeout(() => {
-            alert('⚠️ Error del servidor al crear el pedido. Se utilizaron datos temporales. Por favor, inténtalo de nuevo más tarde.');
+            this.abrirModal('⚠️ Error del servidor al crear el pedido. Se utilizaron datos temporales. Por favor, inténtalo de nuevo más tarde.');
+            this.procesandoPedido = false;
           }, 100);
           
           // No limpiar carrito ni redirigir
@@ -252,7 +263,8 @@ export class CartPageComponent implements OnInit {
           errorMessage = `Error al generar el pedido: ${error.message}`;
         }
         
-        alert(errorMessage);
+        this.abrirModal(errorMessage);
+        this.procesandoPedido = false;
         
         // Cerrar modal pero mantener carrito
         this.showPaymentModal = false;
@@ -265,6 +277,7 @@ export class CartPageComponent implements OnInit {
   cancelarPago(): void {
     this.showPaymentModal = false;
     this.selectedPaymentMethod = '';
+    this.procesandoPedido = false;
   }
 
   // Obtener etiqueta del método de pago
@@ -277,7 +290,7 @@ export class CartPageComponent implements OnInit {
   procesarMercadoPago(): void {
     const usuario = this.authService.getCurrentUser();
     if (!usuario) {
-      alert('Debes iniciar sesión para realizar un pedido');
+      this.abrirModal('Debes iniciar sesión para realizar un pedido');
       return;
     }
 
@@ -306,16 +319,18 @@ export class CartPageComponent implements OnInit {
           // Crear preferencia de pago en MercadoPago
           this.crearPreferenciaMercadoPago(pedido.id);
         } else {
-          alert('Error al crear el pedido. Por favor, intenta nuevamente.');
+          this.abrirModal('Error al crear el pedido. Por favor, intenta nuevamente.');
           this.showPaymentModal = false;
           this.selectedPaymentMethod = '';
+          this.procesandoPedido = false;
         }
       },
       error: (error) => {
         console.error('🔴 [CART] Error al crear pedido para MercadoPago:', error);
-        alert('Error al crear el pedido. Por favor, intenta nuevamente.');
+        this.abrirModal('Error al crear el pedido. Por favor, intenta nuevamente.');
         this.showPaymentModal = false;
         this.selectedPaymentMethod = '';
+        this.procesandoPedido = false;
       }
     });
   }
@@ -359,19 +374,15 @@ export class CartPageComponent implements OnInit {
             const continuar = confirm(mensaje);
             
             if (continuar) {
-              // Redirigir a MercadoPago
-              // Usar initPoint (funciona con autoReturn). sandboxInitPoint queda como fallback.
               const urlPago = response.initPoint || response.sandboxInitPoint;
               console.log('🔵 [MERCADOPAGO] Redirigiendo a:', urlPago);
               window.location.href = urlPago;
             } else {
-              // Si el usuario cancela, informarle que puede volver a intentar
-              alert('Puedes volver a intentar el pago desde tu historial de pedidos.');
-              // Redirigir al historial de pedidos
-              this.router.navigate(['/orders-history']);
+              this.procesandoPedido = false;
             }
           } else {
-            alert('Error al crear la preferencia de pago. Por favor, intenta nuevamente.');
+            this.abrirModal('Error al crear la preferencia de pago. Por favor, intenta nuevamente.');
+            this.procesandoPedido = false;
           }
         },
         error: (error) => {
@@ -382,9 +393,10 @@ export class CartPageComponent implements OnInit {
             errorMessage = error.error.error;
           }
           
-          alert(errorMessage);
+          this.abrirModal(errorMessage);
           this.showPaymentModal = false;
           this.selectedPaymentMethod = '';
+          this.procesandoPedido = false;
         }
       });
   }
@@ -526,10 +538,22 @@ export class CartPageComponent implements OnInit {
         error: (error) => {
           console.error('🔴 [CART] Error al cargar usuarios:', error);
           this.loadingUsers = false;
-          alert('Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.');
+          this.abrirModal('Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.');
         }
       });
     }
+
+  abrirModal(mensaje: string, esExito: boolean = false): void {
+    this.modalMensaje = mensaje;
+    this.modalEsExito = esExito;
+    this.mostrarModal = true;
+  }
+
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.modalMensaje = '';
+    this.modalEsExito = false;
+  }
 
   onUserChange(): void {
     console.log('🔵 [CART] onUserChange llamado con selectedUserId:', this.selectedUserId, 'tipo:', typeof this.selectedUserId);

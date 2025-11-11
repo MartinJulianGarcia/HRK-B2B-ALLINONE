@@ -119,3 +119,11 @@
   </div>
 </div>
 
+<div class="modal-overlay" *ngIf="mostrarModal">
+  <div class="modal-dialog">
+    <h3>Aviso</h3>
+    <p>{{ modalMensaje }}</p>
+    <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Aceptar</button>
+  </div>
+</div>
+

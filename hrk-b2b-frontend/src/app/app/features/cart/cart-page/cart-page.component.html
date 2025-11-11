@@ -169,6 +169,14 @@
   </div>
   </div>
 
+<div class="modal-overlay" *ngIf="mostrarModal" (click)="cerrarModal()">
+  <div class="modal-dialog" [class.success]="modalEsExito" (click)="$event.stopPropagation()">
+    <h3>{{ modalEsExito ? 'Operación exitosa' : 'Aviso' }}</h3>
+    <pre class="modal-message">{{ modalMensaje }}</pre>
+    <button type="button" class="btn-secondary" (click)="cerrarModal()">Aceptar</button>
+  </div>
+</div>
+
   <!-- Modal de método de pago -->
   <div *ngIf="showPaymentModal" class="modal-overlay" (click)="cancelarPago()">
     <div class="modal-content" (click)="$event.stopPropagation()">
@@ -201,8 +209,9 @@
         <button 
           class="btn-confirm" 
           (click)="confirmarPedidoConPago()"
-          [disabled]="!selectedPaymentMethod">
-          Confirmar Pedido
+          [disabled]="!selectedPaymentMethod || procesandoPedido">
+          <span *ngIf="!procesandoPedido">Confirmar Pedido</span>
+          <span *ngIf="procesandoPedido">Confirmando...</span>
         </button>
       </div>
     </div>

@@ -69,7 +69,8 @@ export class AddProductPageComponent implements OnInit {
     'SACO',
     'BUZO',
     'CAMPERA',
-    'CHALECO'
+    'CHALECO',
+    'CAMISA'
   ];
 
   // Categorías de talles (solo se puede seleccionar UNA categoría)

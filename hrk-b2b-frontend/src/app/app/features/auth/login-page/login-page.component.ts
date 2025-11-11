@@ -19,6 +19,8 @@ export class LoginPageComponent {
   emailRecuperacion = '';
   recuperando = false;
   mensajeRecuperacion = '';
+  mostrarModal = false;
+  modalMensaje = '';
 
   constructor(
     private authService: AuthService,
@@ -40,15 +42,11 @@ export class LoginPageComponent {
       error: (err) => {
         this.loading = false;
         this.error = err.message || 'Error al iniciar sesión';
-        this.showErrorMessage();
+        this.abrirModal('Datos ingresados erróneos. Por favor, verifica tu email y contraseña.');
         this.clearForm();
         console.log('Login error:', err);
       }
     });
-  }
-
-  showErrorMessage(): void {
-    alert('Datos ingresados erróneos. Por favor, verifica tu email y contraseña.');
   }
 
   clearForm(): void {
@@ -63,7 +61,7 @@ export class LoginPageComponent {
 
   solicitarRecuperacion(): void {
     if (!this.emailRecuperacion || !this.emailRecuperacion.includes('@')) {
-      alert('Por favor ingresa un email válido');
+      this.abrirModal('Por favor ingresa un email válido.');
       return;
     }
 
@@ -74,16 +72,25 @@ export class LoginPageComponent {
       next: (response) => {
         this.recuperando = false;
         this.mensajeRecuperacion = response.message || 'Se ha enviado un email con tu contraseña';
-        alert(this.mensajeRecuperacion);
+        this.abrirModal(this.mensajeRecuperacion);
         this.mostrarRecuperacion = false;
         this.emailRecuperacion = '';
       },
       error: (error) => {
         this.recuperando = false;
         this.mensajeRecuperacion = error.message || 'Error al solicitar recuperación de contraseña';
-        alert(this.mensajeRecuperacion);
+        this.abrirModal(this.mensajeRecuperacion);
       }
     });
   }
 
+  abrirModal(mensaje: string): void {
+    this.modalMensaje = mensaje;
+    this.mostrarModal = true;
+  }
+
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.modalMensaje = '';
+  }
 }

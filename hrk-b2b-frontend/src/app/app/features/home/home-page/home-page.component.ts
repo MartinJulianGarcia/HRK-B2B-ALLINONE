@@ -31,6 +31,9 @@ export class HomePageComponent implements OnInit, OnDestroy {
   searchTerm = ''; // Término de búsqueda
   searchResults: any[] = []; // Resultados de la búsqueda
   private lastStorageValue: string | null = null;
+  mostrarModal = false;
+  modalMensaje = '';
+  modalEsExito = false;
 
   constructor(
     private productsService: ProductsService,
@@ -110,19 +113,19 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   updateCarouselLogic(): void {
     const productCount = this.filteredProducts.length;
-    
+
     if (productCount <= 5) {
       // Para 5 o menos productos: mostrar todos centrados, sin navegación
-      this.itemsPerView = productCount;
+      this.itemsPerView = productCount === 0 ? 1 : productCount;
       this.currentSlide = 0;
       this.maxSlide = 0;
       this.showNavigation = false;
     } else {
       // Para 6+ productos: carrusel completo con navegación
       this.itemsPerView = 5;
-      this.currentSlide = 0;
-      this.maxSlide = productCount - 5;
       this.showNavigation = true;
+      this.maxSlide = Math.max(0, productCount - this.itemsPerView);
+      this.currentSlide = Math.min(this.currentSlide, this.maxSlide);
     }
   }
 
@@ -167,9 +170,14 @@ export class HomePageComponent implements OnInit, OnDestroy {
     // Encontrar el índice del producto seleccionado y ajustar el carrusel
     const productIndex = this.filteredProducts.findIndex(p => p.id === producto.id);
     if (productIndex !== -1) {
-      // Ajustar currentSlide para que el producto seleccionado esté en el medio
-      const middleOffset = Math.floor(this.itemsPerView / 2);
-      this.currentSlide = Math.max(0, Math.min(this.maxSlide, productIndex - middleOffset));
+      const minVisibleIndex = this.currentSlide;
+      const maxVisibleIndex = this.currentSlide + this.itemsPerView - 1;
+
+      if (productIndex < minVisibleIndex) {
+        this.currentSlide = Math.max(0, productIndex);
+      } else if (productIndex > maxVisibleIndex) {
+        this.currentSlide = Math.min(this.maxSlide, productIndex);
+      }
     }
   }
 
@@ -355,13 +363,13 @@ export class HomePageComponent implements OnInit, OnDestroy {
             
             if (completedItems === totalItems) {
               // Mostrar mensaje de éxito final
-              alert(`Se agregaron todos los items al carrito`);
+              this.abrirModal('Se agregaron todos los items al carrito ✅', true);
               this.updateCartCount();
             }
           },
           error: (error) => {
             console.error('Error al agregar item al carrito:', error);
-            alert('Error al agregar el producto al carrito');
+            this.abrirModal('Error al agregar el producto al carrito', false);
           }
         });
       });
@@ -410,6 +418,18 @@ export class HomePageComponent implements OnInit, OnDestroy {
 
   updateCartCount(): void {
     this.cartItemCount = this.cartService.getCantidadItems();
+  }
+
+  abrirModal(mensaje: string, esExito: boolean): void {
+    this.modalEsExito = esExito;
+    this.modalMensaje = esExito && !mensaje.includes('✅') ? `${mensaje} ✅` : mensaje;
+    this.mostrarModal = true;
+  }
+
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.modalMensaje = '';
+    this.modalEsExito = false;
   }
 
   // Métodos de búsqueda

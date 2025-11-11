@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@types/jspdf": "^2.0.0",
+    "jspdf": "^3.0.3"
+  }
+}

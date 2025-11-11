@@ -5,6 +5,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { OrdersService, Pedido, EstadoPedido, TipoPedido } from '../../../core/orders.service';
 import { AuthService } from '../../../core/auth.service';
 import { CartService } from '../../../core/cart.service';
+import jsPDF from 'jspdf';
 
 @Component({
   selector: 'app-order-detail-page',
@@ -198,6 +199,99 @@ export class OrderDetailPageComponent implements OnInit {
       return 0;
     }
     return this.pedido.items.length;
+  }
+
+  descargarPDF(): void {
+    if (!this.pedido) {
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const doc = new jsPDF();
+    let y = 20;
+
+    const pedido = this.pedido;
+    const usuario = pedido.usuario;
+
+    doc.setFontSize(16);
+    doc.text(`Pedido #${pedido.id}`, 14, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    const fechaOriginal: any = (pedido as any).fecha ?? (pedido as any).fechaCreacion;
+    if (fechaOriginal) {
+      doc.text(`Fecha: ${this.formatearFecha(fechaOriginal)}`, 14, y);
+      y += 6;
+    }
+
+    doc.text(`Cliente: ${usuario?.nombreRazonSocial || 'N/A'}`, 14, y);
+    y += 6;
+
+    doc.text(`Email: ${usuario?.email || 'N/A'}`, 14, y);
+    y += 6;
+
+    doc.text(`CUIT: ${usuario?.cuit || 'N/A'}`, 14, y);
+    y += 6;
+
+    if (pedido.metodoPago) {
+      doc.text(`Método de pago: ${pedido.metodoPago}`, 14, y);
+      y += 6;
+    }
+
+    doc.text(`Total: ${this.formatearMonto(pedido.montoTotal)}`, 14, y);
+    y += 10;
+
+    doc.setFontSize(13);
+    doc.text('Artículos', 14, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Producto', 14, y);
+    doc.text('Variante', 70, y);
+    doc.text('Cant.', 120, y, { align: 'right' });
+    doc.text('Precio', 150, y, { align: 'right' });
+    doc.text('Subtotal', 190, y, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    y += 6;
+
+    const items = pedido.items || [];
+    items.forEach(item => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+
+      const nombreProducto = item.productoNombre || item.variante?.sku || `Variante ${item.varianteId}`;
+      const varianteTexto = item.variante
+        ? `${item.variante.color || '-'} / ${item.variante.talle || '-'}`
+        : '-';
+      const cantidadTexto = `${item.cantidad}`;
+      const precioTexto = this.formatearMonto(item.precioUnitario);
+      const subtotalTexto = this.formatearMonto(item.subtotal);
+
+      doc.text(nombreProducto, 14, y);
+      doc.text(varianteTexto, 70, y);
+      doc.text(cantidadTexto, 120, y, { align: 'right' });
+      doc.text(precioTexto, 150, y, { align: 'right' });
+      doc.text(subtotalTexto, 190, y, { align: 'right' });
+
+      y += 6;
+
+      if (item.variante?.sku) {
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(`SKU: ${item.variante.sku}`, 70, y);
+        doc.setFontSize(11);
+        doc.setTextColor(0);
+        y += 5;
+      }
+    });
+
+    doc.save(`pedido-${pedido.id}.pdf`);
   }
 
   getEstadoClass(estado: EstadoPedido): string {

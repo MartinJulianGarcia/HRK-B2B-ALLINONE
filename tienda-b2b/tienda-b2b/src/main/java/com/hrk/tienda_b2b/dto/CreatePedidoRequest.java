@@ -21,5 +21,6 @@ public class CreatePedidoRequest {
     public static class UsuarioInfoDTO {
         private String nombreRazonSocial;
         private String email;
+        private String cuit;
     }
 }
