@@ -17,6 +17,7 @@ export class DevolucionPageComponent implements OnInit {
   clienteId?: number;
   cliente?: Usuario;
   pedidosEntregados: Pedido[] = [];
+  pedidosExpandido: { [pedidoId: number]: boolean } = {};
   itemsSeleccionados: { [key: string]: boolean } = {};
   cantidadesDevolucion: { [key: string]: number } = {}; // { 'pedidoId-itemId': cantidad }
   disponibilidadVariantes: { [varianteId: string]: { totalEntregado: number; totalDevuelto: number; disponibleParaDevolver: number } } = {}; // Disponibilidad por variante
@@ -76,6 +77,9 @@ export class DevolucionPageComponent implements OnInit {
         this.pedidosEntregados = pedidos.filter((pedido: Pedido) => 
           pedido.estado === EstadoPedido.ENTREGADO
         );
+        this.pedidosEntregados.forEach(pedido => {
+          this.pedidosExpandido[pedido.id] = false;
+        });
         this.loading = false;
         console.log('🔵 [DEVOLUCION] Pedidos entregados cargados:', this.pedidosEntregados.length);
       },
@@ -87,7 +91,7 @@ export class DevolucionPageComponent implements OnInit {
     });
   }
 
-  toggleItemSeleccion(pedidoId: number, itemId: number): void {
+  toggleItemSeleccion(pedidoId: number, itemId: number, event?: Event): void {
     const key = `${pedidoId}-${itemId}`;
     this.itemsSeleccionados[key] = !this.itemsSeleccionados[key];
     
@@ -107,7 +111,12 @@ export class DevolucionPageComponent implements OnInit {
             this.cantidadesDevolucion[key] = 0;
             // Deseleccionar automáticamente si no hay disponibilidad
             this.itemsSeleccionados[key] = false;
+            this.refreshSeleccionados();
+            if (event) {
+              (event.target as HTMLInputElement).checked = false;
+            }
             alert(`No hay disponibilidad para devolver este item. Ya se han devuelto ${disponibilidad.totalDevuelto} de ${disponibilidad.totalEntregado} unidades entregadas.`);
+            return;
           } else {
             this.cantidadesDevolucion[key] = Math.min(item.cantidad, cantidadDisponible);
           }
@@ -124,6 +133,7 @@ export class DevolucionPageComponent implements OnInit {
       delete this.cantidadesDevolucion[key];
     }
     
+    this.refreshSeleccionados();
     console.log('🔵 [DEVOLUCION] Item seleccionado:', key, this.itemsSeleccionados[key]);
   }
 
@@ -160,6 +170,7 @@ export class DevolucionPageComponent implements OnInit {
                 // Si no hay disponibilidad, poner cantidad en 0 y deseleccionar
                 this.cantidadesDevolucion[key] = 0;
                 this.itemsSeleccionados[key] = false;
+                this.refreshSeleccionados();
                 console.log('🟡 [DEVOLUCION] Item deseleccionado para', key, 'por falta de disponibilidad');
               } else if (cantidadActual > disponible) {
                 this.cantidadesDevolucion[key] = disponible;
@@ -393,6 +404,31 @@ export class DevolucionPageComponent implements OnInit {
 
   volverAlHistorial(): void {
     this.router.navigate(['/orders-history']);
+  }
+
+  goToCatalog(): void {
+    this.router.navigate(['/catalog']);
+  }
+
+  goToInfo(): void {
+    this.router.navigate(['/info']);
+  }
+
+  goToCart(): void {
+    this.router.navigate(['/cart']);
+  }
+
+  goToProfile(): void {
+    this.router.navigate(['/profile']);
+  }
+
+  togglePedidoExpandido(pedidoId: number): void {
+    this.pedidosExpandido[pedidoId] = !this.pedidosExpandido[pedidoId];
+    this.pedidosExpandido = { ...this.pedidosExpandido };
+  }
+
+  private refreshSeleccionados(): void {
+    this.itemsSeleccionados = { ...this.itemsSeleccionados };
   }
 
   updateCartCount(): void {

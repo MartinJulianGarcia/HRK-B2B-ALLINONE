@@ -1,47 +1,147 @@
-// Variables
-$primary-color: #2c3e50;
-$secondary-color: #667eea;
-$accent-color: #f39c12;
-$success-color: #27ae60;
-$danger-color: #e74c3c;
-$light-gray: #f8f9fa;
-$border-color: #dee2e6;
-$text-color: #2c3e50;
-$white: #ffffff;
-
-// Header
-.header {
-  background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 10%) 100%);
-  color: $white;
-  padding: 20px 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+.cart-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.catalog-header {
+  background: black;
+  color: white;
+  padding: 20px 25px;
+  margin: 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  position: relative;
 }
 
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
+.header-left {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.logo:hover {
+  transform: translateY(-2px);
+}
+
+.logo-symbol {
+  width: 72px;
+  height: 72px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 3px solid white;
+  margin-top: -10px;
+  margin-bottom: -10px;
+}
+
+.logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.logo-image:hover {
+  transform: scale(1.05);
+}
+
+.main-nav {
+  display: flex;
+  gap: 20px;
   align-items: center;
 }
 
-.header-left h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: bold;
+.nav-item {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: uppercase;
+  transition: opacity 0.3s;
+  cursor: pointer;
 }
 
-.cliente-info {
-  margin-top: 8px;
-  font-size: 16px;
-  opacity: 0.9;
+.nav-item:hover {
+  opacity: 0.7;
+}
+
+.nav-item.sale {
+  color: #ff4444;
+  font-weight: 600;
+}
+
+.nav-item.info {
+  font-style: italic;
+  text-transform: lowercase;
+  font-weight: 400;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  position: relative;
+}
+
+.icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.user-icon-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.user-icon-fallback {
+  font-size: 24px;
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
 }
 
 .logout-btn {
@@ -60,7 +160,112 @@ $white: #ffffff;
   }
 }
 
+// Variables
+$primary-color: #2c3e50;
+$secondary-color: #667eea;
+$accent-color: #f39c12;
+$success-color: #27ae60;
+$danger-color: #e74c3c;
+$light-gray: #f8f9fa;
+$border-color: #dee2e6;
+$text-color: #2c3e50;
+$white: #ffffff;
+
+// Layout general
+.page-container {
+  min-height: 100vh;
+  background: #f5f6fa;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.back-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  color: #1f2937;
+
+  &:hover {
+    background: rgba(15, 23, 42, 0.08);
+  }
+}
+
+.page-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-btn {
+  background: #ef4444;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: #dc2626;
+  }
+}
+
+.client-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 12px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.client-label {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.client-name {
+  font-weight: 500;
+  color: #111827;
+}
+
+.client-email {
+  color: #4b5563;
+}
+
 // Contenido principal
+.devolucion-page {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  background: #f5f6fa;
+  min-height: 100vh;
+}
+
 .devolucion-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -142,25 +347,58 @@ $white: #ffffff;
 }
 
 .pedido-header {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid $border-color;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  padding: 14px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  margin-bottom: 12px;
+
+  &:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.12);
+  }
 }
 
-.pedido-header h3 {
-  margin: 0;
-  color: $text-color;
-  font-size: 20px;
-}
-
-.pedido-info {
+.pedido-title {
   display: flex;
-  gap: 20px;
-  font-size: 14px;
-  color: #6c757d;
+  align-items: center;
+  gap: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #e5e7eb;
+  color: #374151;
+
+  &.monto {
+    background: #dcfce7;
+    color: #166534;
+  }
+}
+
+.toggle-icon {
+  font-size: 16px;
+  color: #4b5563;
 }
 
 // Items

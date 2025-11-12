@@ -3,6 +3,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { API_BASE_URL } from './backend-url';
+import { AuthService } from './auth.service';
 
 export interface TemporadaDTO {
   id: number;
@@ -29,10 +30,12 @@ export class TemporadasService {
   private selectedTemporadaSubject = new BehaviorSubject<number | null>(null);
   selectedTemporada$ = this.selectedTemporadaSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {}
 
   list(): Observable<TemporadaDTO[]> {
-    return this.http.get<TemporadaDTO[]>(this.API_URL).pipe(
+    return this.http.get<TemporadaDTO[]>(this.API_URL, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       tap(temporadas => {
         const activa = temporadas.find(t => t.activa);
         this.selectedTemporadaSubject.next(activa ? activa.id : null);
@@ -41,24 +44,35 @@ export class TemporadasService {
   }
 
   getById(id: number): Observable<TemporadaDTO> {
-    return this.http.get<TemporadaDTO>(`${this.API_URL}/${id}`);
+    return this.http.get<TemporadaDTO>(`${this.API_URL}/${id}`, {
+      headers: this.authService.getAuthHeaders()
+    });
   }
 
   create(payload: TemporadaRequest): Observable<TemporadaDTO> {
-    return this.http.post<TemporadaDTO>(this.API_URL, payload);
+    return this.http.post<TemporadaDTO>(this.API_URL, payload, {
+      headers: this.authService.getAuthHeaders()
+    });
   }
 
   update(id: number, payload: TemporadaRequest): Observable<TemporadaDTO> {
-    return this.http.put<TemporadaDTO>(`${this.API_URL}/${id}`, payload);
+    return this.http.put<TemporadaDTO>(`${this.API_URL}/${id}`, payload, {
+      headers: this.authService.getAuthHeaders()
+    });
   }
 
   delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.API_URL}/${id}`);
+    return this.http.delete<void>(`${this.API_URL}/${id}`, {
+      headers: this.authService.getAuthHeaders()
+    });
   }
 
   getActive(): Observable<TemporadaDTO | null> {
     return this.http
-      .get<TemporadaDTO>(`${this.API_URL}/activa`, { observe: 'response' })
+      .get<TemporadaDTO>(`${this.API_URL}/activa`, {
+        observe: 'response',
+        headers: this.authService.getAuthHeaders()
+      })
       .pipe(
         map((response: HttpResponse<TemporadaDTO>) => response.body ?? null),
         tap(temporada => {
@@ -71,7 +85,10 @@ export class TemporadasService {
   setActive(temporadaId: number | null): Observable<TemporadaDTO | null> {
     const payload: SeleccionarTemporadaRequest = { temporadaId };
     return this.http
-      .put<TemporadaDTO>(`${this.API_URL}/activa`, payload, { observe: 'response' })
+      .put<TemporadaDTO>(`${this.API_URL}/activa`, payload, {
+        observe: 'response',
+        headers: this.authService.getAuthHeaders()
+      })
       .pipe(
         map((response: HttpResponse<TemporadaDTO>) => response.body ?? null),
         tap(temporada => {
