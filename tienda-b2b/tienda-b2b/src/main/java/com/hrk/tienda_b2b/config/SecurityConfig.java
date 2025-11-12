@@ -31,7 +31,26 @@ public class SecurityConfig {
                 .exceptionHandling(handler -> handler.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/uploads/**", "/images/**", "/public/**", "/static/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/",
+                                "/index.html",
+                                "/favicon.ico",
+                                "/manifest.json",
+                                "/uploads/**",
+                                "/images/**",
+                                "/public/**",
+                                "/static/**",
+                                "/HIRKUM-MONOGRAMA-B.jpg",
+                                "/**/*.js",
+                                "/**/*.css",
+                                "/**/*.html",
+                                "/**/*.png",
+                                "/**/*.jpg",
+                                "/**/*.jpeg",
+                                "/**/*.gif",
+                                "/**/*.svg",
+                                "/**/*.webp"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/productos/**").permitAll()
                         .anyRequest().authenticated()
                 );
