@@ -3,6 +3,7 @@ import { Observable, of, forkJoin, from } from 'rxjs';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { tap, catchError, map, switchMap, concatMap, toArray } from 'rxjs/operators';
 import { API_BASE_URL } from './backend-url';
+import { AuthService } from './auth.service';
 
 export enum EstadoPedido {
   PENDIENTE = 'Pendiente',
@@ -120,7 +121,7 @@ export class OrdersService {
   private nextId = 1;
   private readonly API_URL = API_BASE_URL;
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private authService: AuthService) {
     // Ya no inicializamos datos mock aquí, los cargamos del backend
   }
 
@@ -271,7 +272,9 @@ export class OrdersService {
     
     console.log('🔵 [ORDERS SERVICE] Request body que se envía al backend:', requestBody);
     
-    return this.http.post<any>(`${this.API_URL}/pedidos/crear`, requestBody).pipe(
+    return this.http.post<any>(`${this.API_URL}/pedidos/crear`, requestBody, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       switchMap((pedidoCreado: any) => {
         console.log('🔵 [ORDERS SERVICE] Pedido básico creado:', pedidoCreado);
         
@@ -281,7 +284,9 @@ export class OrdersService {
         // Crear un stream secuencial de operaciones usando from y concatMap
         return from(items).pipe(
           concatMap(item => 
-            this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoCreado.id}/items?varianteId=${item.varianteId}&cantidad=${item.cantidad}`, {}).pipe(
+            this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoCreado.id}/items?varianteId=${item.varianteId}&cantidad=${item.cantidad}`, {}, {
+              headers: this.authService.getAuthHeaders()
+            }).pipe(
               map((response: PedidoResponseDTO) => {
                 console.log('🔵 [ORDERS SERVICE] Item agregado:', item.varianteId, 'cantidad:', item.cantidad, 'response:', response);
                 ultimaRespuestaPedido = response; // Guardar la última respuesta exitosa
@@ -314,7 +319,9 @@ export class OrdersService {
                 console.log('🔵 [ORDERS SERVICE] Todos los items agregados. Confirmando pedido para descontar stock...');
                 
                 // Confirmar el pedido para descontar stock y registrar movimientos
-                return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoCreado.id}/confirmar`, {}).pipe(
+                return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoCreado.id}/confirmar`, {}, {
+                  headers: this.authService.getAuthHeaders()
+                }).pipe(
                   map((pedidoConfirmado: PedidoResponseDTO) => {
                     console.log('✅ [ORDERS SERVICE] Pedido confirmado - Stock descontado:', pedidoConfirmado);
                     const pedidoFinal = this.mapToPedido(pedidoConfirmado);
@@ -389,7 +396,9 @@ export class OrdersService {
     console.log('🔵 [ORDERS SERVICE] Obteniendo todos los pedidos');
     console.log('🔵 [ORDERS SERVICE] URL completa:', `${this.API_URL}/pedidos/todos`);
     
-    return this.http.get<PedidoResponseDTO[]>(`${this.API_URL}/pedidos/todos`).pipe(
+    return this.http.get<PedidoResponseDTO[]>(`${this.API_URL}/pedidos/todos`, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       tap(response => {
         console.log('🔵 [ORDERS SERVICE] Respuesta del backend:', response);
         console.log('🔵 [ORDERS SERVICE] Cantidad de pedidos:', response?.length || 0);
@@ -421,7 +430,7 @@ export class OrdersService {
     console.log('🔵 [ORDERS SERVICE] URL completa:', `${this.API_URL}/pedidos?clienteId=${clienteId}`);
     
     return this.http.get<string>(`${this.API_URL}/pedidos?clienteId=${clienteId}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.authService.getAuthHeaders().set('Content-Type', 'application/json'),
       responseType: 'text' as 'json'
     }).pipe(
       tap(response => {
@@ -571,7 +580,9 @@ export class OrdersService {
   // Aprobar devolución como apta (devuelve stock)
   aprobarDevolucionApta(devolucionId: number): Observable<PedidoResponseDTO> {
     console.log('🔵 [ORDERS SERVICE] Aprobando devolución como apta:', devolucionId);
-    return this.http.post<PedidoResponseDTO>(`${this.API_URL}/devoluciones/${devolucionId}/aprobar-apta`, {}).pipe(
+    return this.http.post<PedidoResponseDTO>(`${this.API_URL}/devoluciones/${devolucionId}/aprobar-apta`, {}, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       tap(response => {
         console.log('✅ [ORDERS SERVICE] Devolución aprobada como apta:', response);
       }),
@@ -585,7 +596,9 @@ export class OrdersService {
   // Aprobar devolución como scrap (no devuelve stock, solo registra)
   aprobarDevolucionScrap(devolucionId: number): Observable<PedidoResponseDTO> {
     console.log('🔵 [ORDERS SERVICE] Aprobando devolución como scrap:', devolucionId);
-    return this.http.post<PedidoResponseDTO>(`${this.API_URL}/devoluciones/${devolucionId}/aprobar-scrap`, {}).pipe(
+    return this.http.post<PedidoResponseDTO>(`${this.API_URL}/devoluciones/${devolucionId}/aprobar-scrap`, {}, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       tap(response => {
         console.log('✅ [ORDERS SERVICE] Devolución aprobada como scrap:', response);
       }),
@@ -602,7 +615,9 @@ export class OrdersService {
     
     if (nuevoEstado === EstadoPedido.ENTREGADO) {
       // Usar endpoint confirmar para marcar como entregado
-      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}).pipe(
+      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}, {
+        headers: this.authService.getAuthHeaders()
+      }).pipe(
         tap(response => {
           console.log('🔵 [ORDERS SERVICE] Pedido confirmado:', response);
         }),
@@ -613,7 +628,9 @@ export class OrdersService {
       );
     } else if (nuevoEstado === EstadoPedido.CANCELADO) {
       // Usar endpoint cancelar para marcar como cancelado
-      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/cancelar`, {}).pipe(
+      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/cancelar`, {}, {
+        headers: this.authService.getAuthHeaders()
+      }).pipe(
         tap(response => {
           console.log('🔵 [ORDERS SERVICE] Pedido cancelado:', response);
         }),
@@ -625,7 +642,9 @@ export class OrdersService {
     } else if (nuevoEstado === EstadoPedido.PENDIENTE) {
       // Para volver a pendiente, usar endpoint específico si existe, o confirmar por defecto
       console.log('🟡 [ORDERS SERVICE] Volviendo a pendiente, usando confirmar por defecto');
-      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}).pipe(
+      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}, {
+        headers: this.authService.getAuthHeaders()
+      }).pipe(
         catchError((error: HttpErrorResponse) => {
           console.error('🔴 [ORDERS SERVICE] Error al cambiar estado:', error);
           throw error;
@@ -634,7 +653,9 @@ export class OrdersService {
     } else {
       // Para otros estados, usar confirmar por defecto
       console.log('🟡 [ORDERS SERVICE] Estado no específico, usando confirmar por defecto');
-      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}).pipe(
+      return this.http.post<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}/confirmar`, {}, {
+        headers: this.authService.getAuthHeaders()
+      }).pipe(
         catchError((error: HttpErrorResponse) => {
           console.error('🔴 [ORDERS SERVICE] Error al cambiar estado:', error);
           throw error;
@@ -664,7 +685,9 @@ export class OrdersService {
     console.log('🔵 [ORDERS SERVICE] Obteniendo pedido por ID:', pedidoId);
     console.log('🔵 [ORDERS SERVICE] URL completa:', `${this.API_URL}/pedidos/${pedidoId}`);
     
-    return this.http.get<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}`).pipe(
+    return this.http.get<PedidoResponseDTO>(`${this.API_URL}/pedidos/${pedidoId}`, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       tap(response => {
         console.log('🔵 [ORDERS SERVICE] Pedido obtenido del backend:', response);
       }),
@@ -684,7 +707,9 @@ export class OrdersService {
     console.log('🔵 [ORDERS SERVICE] Obteniendo pedidos por cliente:', clienteId);
     console.log('🔵 [ORDERS SERVICE] URL completa:', `${this.API_URL}/pedidos?clienteId=${clienteId}`);
     
-    return this.http.get<PedidoResponseDTO[]>(`${this.API_URL}/pedidos?clienteId=${clienteId}`).pipe(
+    return this.http.get<PedidoResponseDTO[]>(`${this.API_URL}/pedidos?clienteId=${clienteId}`, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       tap(response => {
         console.log('🔵 [ORDERS SERVICE] Pedidos del cliente obtenidos:', response);
       }),
@@ -710,7 +735,9 @@ export class OrdersService {
       totalEntregado: number;
       totalDevuelto: number;
       disponibleParaDevolver: number;
-    }>(`${this.API_URL}/devoluciones/disponibilidad?clienteId=${clienteId}&varianteId=${varianteId}`).pipe(
+    }>(`${this.API_URL}/devoluciones/disponibilidad?clienteId=${clienteId}&varianteId=${varianteId}`, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       tap(disponibilidad => {
         console.log('🔵 [ORDERS SERVICE] Disponibilidad consultada:', disponibilidad);
       }),
@@ -727,7 +754,9 @@ export class OrdersService {
     console.log('🔵 [ORDERS SERVICE] Items:', items);
     
     // Crear la devolución primero
-    return this.http.post(`${this.API_URL}/devoluciones/crear?clienteId=${clienteId}`, {}).pipe(
+    return this.http.post(`${this.API_URL}/devoluciones/crear?clienteId=${clienteId}`, {}, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
       switchMap((devolucion: any) => {
         console.log('🔵 [ORDERS SERVICE] Devolución creada:', devolucion);
         
@@ -735,7 +764,9 @@ export class OrdersService {
         return from(items).pipe(
           concatMap(item => {
             console.log('🔵 [ORDERS SERVICE] Agregando item:', item);
-            return this.http.post(`${this.API_URL}/devoluciones/${devolucion.id}/items?varianteId=${item.varianteId}&cantidad=${item.cantidad}&motivo=Devolución por solicitud del cliente`, {});
+            return this.http.post(`${this.API_URL}/devoluciones/${devolucion.id}/items?varianteId=${item.varianteId}&cantidad=${item.cantidad}&motivo=Devolución por solicitud del cliente`, {}, {
+              headers: this.authService.getAuthHeaders()
+            });
           }),
           toArray(),
           map((responses) => {

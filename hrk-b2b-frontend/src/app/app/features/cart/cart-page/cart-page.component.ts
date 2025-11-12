@@ -407,11 +407,9 @@ export class CartPageComponent implements OnInit {
 
   // Eliminar item específico del carrito
   eliminarItem(itemId: number): void {
-    if (confirm('¿Estás seguro de que quieres eliminar este producto del carrito?')) {
-      this.cart.removerItem(itemId);
-      this.loadCarritoItems(); // Recargar la lista
-      this.updateCartCount(); // Actualizar contador
-    }
+    this.cart.removerItem(itemId);
+    this.loadCarritoItems(); // Recargar la lista
+    this.updateCartCount(); // Actualizar contador
   }
 
   // Actualizar cantidad de un item
