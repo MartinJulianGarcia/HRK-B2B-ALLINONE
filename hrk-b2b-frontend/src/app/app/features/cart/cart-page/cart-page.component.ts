@@ -224,16 +224,29 @@ export class CartPageComponent implements OnInit {
           this.cart.limpiarCarrito();
           this.loadCarritoItems();
           this.updateCartCount();
+
+          const metodoSeleccionado = (this.selectedPaymentMethod || '').toLowerCase();
           
           // Cerrar modal
           this.showPaymentModal = false;
           this.selectedPaymentMethod = '';
-          
-          this.abrirModal(`✅ Pedido generado exitosamente en el sistema.\nNúmero de pedido: ${pedido.id}\nMétodo de pago: ${metodoPagoLabel}\nTotal: $${pedido.montoTotal.toLocaleString()}`, true);
+
+          if (metodoSeleccionado === 'mercadopago' || metodoSeleccionado === 'mercado_pago' || metodoSeleccionado === 'mercado pago') {
+            this.abrirModal(`✅ Pedido generado exitosamente en el sistema.\nNúmero de pedido: ${pedido.id}\nMétodo de pago: ${metodoPagoLabel}\nTotal: $${pedido.montoTotal.toLocaleString()}`, true);
+          } else {
+            this.abrirModal('Pedido confirmado y visible en el historial ✅', true);
+          }
           this.procesandoPedido = false;
           
-          // Redirigir al historial
-          this.router.navigate(['/orders-history']);
+          // Redirigir al historial cuando el usuario cierre el modal
+          const originalCerrarModal = this.cerrarModal.bind(this);
+          this.cerrarModal = () => {
+            originalCerrarModal();
+            this.cerrarModal = originalCerrarModal;
+            this.showPaymentModal = false;
+            this.selectedPaymentMethod = '';
+            this.router.navigate(['/orders-history']);
+          };
         } else {
           // Si es mock data, mostrar mensaje diferente
           console.log('🟡 [CART] Pedido creado con datos mock debido a error del backend');
@@ -443,8 +456,6 @@ export class CartPageComponent implements OnInit {
       } else {
         if (resultado.ajustado) {
           this.abrirModal(`⚠️ La cantidad se ajustó al máximo disponible (${resultado.stockDisponible}).`);
-        } else {
-          this.abrirModal('Cantidad actualizada en el carrito ✅', true);
         }
         event.target.value = resultado.cantidadFinal.toString();
         this.loadCarritoItems(); // Recargar la lista para actualizar totales
