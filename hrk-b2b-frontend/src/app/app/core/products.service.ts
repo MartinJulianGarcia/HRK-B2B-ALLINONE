@@ -4,6 +4,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { tap, catchError, switchMap } from 'rxjs/operators';
 import { Categoria } from './categories.enum';
 import { API_BASE_URL, BACKEND_BASE_URL } from './backend-url';
+import { AuthService } from './auth.service';
 
 export interface VarianteDTO {
   id: number; 
@@ -37,7 +38,10 @@ export class ProductsService {
   private readonly BASE_URL = BACKEND_BASE_URL;
   private readonly API_URL = `${API_BASE_URL}`;
   
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
 
   // Helper para normalizar URLs de imágenes
   private normalizeImageUrl(imageUrl: string): string {
@@ -129,10 +133,10 @@ export class ProductsService {
     console.log('🔵 [FRONTEND] Subiendo imagen:', file.name, 'Tamaño:', file.size);
     console.log('🔵 [FRONTEND] URL de subida (URL directa):', uploadUrl);
     
+    const headers = this.authService.getAuthHeaders().delete('Content-Type');
+
     return this.http.post<string>(uploadUrl, formData, {
-      headers: {
-        // No especificar Content-Type para que Angular lo maneje automáticamente con multipart/form-data
-      },
+      headers,
       responseType: 'text' as 'json'
     }).pipe(
       tap(response => {
@@ -292,7 +296,9 @@ export class ProductsService {
           console.error('🔴 [FRONTEND] Continuando sin imagen personalizada...');
           // En lugar de throw, continuamos sin imagen personalizada
           console.log('🟡 [FRONTEND] Creando producto sin imagen personalizada debido a error en upload');
-          return this.http.post(`${this.API_URL}/productos`, requestBase);
+          return this.http.post(`${this.API_URL}/productos`, requestBase, {
+            headers: this.authService.getAuthHeaders()
+          });
         }
           
           // Normalizar la URL de la imagen
@@ -308,7 +314,9 @@ export class ProductsService {
           console.log('🔵 [FRONTEND] 🔍 TIPO DE STOCK POR VARIANTE:', typeof request.stockPorVariante);
           console.log('🔵 [FRONTEND] 🔍 JSON STRINGIFY:', JSON.stringify(request.stockPorVariante));
           
-    return this.http.post(`${this.API_URL}/productos`, request);
+    return this.http.post(`${this.API_URL}/productos`, request, {
+      headers: this.authService.getAuthHeaders()
+    });
         }),
         catchError(error => {
           console.error('🔴 [FRONTEND] Error en subida de imagen:', error);
@@ -329,14 +337,18 @@ export class ProductsService {
             console.log('🟡 [FRONTEND] Esto generalmente se debe a problemas de configuración del proxy o CORS en el backend');
           }
           
-          return this.http.post(`${this.API_URL}/productos`, requestBase);
+          return this.http.post(`${this.API_URL}/productos`, requestBase, {
+            headers: this.authService.getAuthHeaders()
+          });
         })
       );
     } else {
       // No hay imagen personalizada
       console.log('🔵 [FRONTEND] No hay imagen personalizada, el backend usará imagen por defecto');
       console.log('🔵 [FRONTEND] Request sin imagen:', requestBase);
-      return this.http.post(`${this.API_URL}/productos`, requestBase);
+      return this.http.post(`${this.API_URL}/productos`, requestBase, {
+        headers: this.authService.getAuthHeaders()
+      });
     }
   }
 
@@ -410,7 +422,9 @@ export class ProductsService {
           if (typeof imageUrl === 'string' && (imageUrl.includes('<!DOCTYPE html>') || imageUrl.includes('<!DOCTYPE'))) {
             console.error('🔴 [FRONTEND] ❌ El backend devolvió HTML en lugar del filename.');
             console.log('🟡 [FRONTEND] Actualizando producto sin nueva imagen personalizada...');
-            return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase);
+            return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase, {
+              headers: this.authService.getAuthHeaders()
+            });
           }
           
           // Normalizar la URL de la imagen
@@ -422,28 +436,36 @@ export class ProductsService {
           console.log('🔵 [FRONTEND] 📤 Request CON nueva imagen al backend:', request);
           console.log('🔵 [FRONTEND] Request incluye oculto:', request.oculto);
           
-          return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, request);
+          return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, request, {
+            headers: this.authService.getAuthHeaders()
+          });
         }),
         catchError(error => {
           console.error('🔴 [FRONTEND] Error en subida de imagen:', error);
           
           // Si falla la subida, actualizar producto sin imagen nueva (mantener la existente)
           console.log('🟡 [FRONTEND] Fallback: actualizando producto sin nueva imagen personalizada');
-          return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase);
+          return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase, {
+            headers: this.authService.getAuthHeaders()
+          });
         })
       );
     } else {
       // No hay imagen nueva, actualizar con datos existentes
       console.log('🔵 [FRONTEND] No hay imagen nueva, actualizando solo datos del producto');
       console.log('🔵 [FRONTEND] Request base (sin imagen) incluye oculto:', requestBase.oculto);
-      return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase);
+      return this.http.put(`${this.API_URL}/productos/${productId}?confirmarVariantesConPedidos=${confirmarVariantesConPedidos}`, requestBase, {
+        headers: this.authService.getAuthHeaders()
+      });
     }
   }
 
   // Método para verificar variantes con pedidos antes de actualizar
   verificarVariantesConPedidos(productId: number): Observable<any> {
     console.log('🔵 [FRONTEND] Verificando variantes con pedidos para producto ID:', productId);
-    return this.http.get(`${this.API_URL}/productos/${productId}/verificar-pedidos`);
+    return this.http.get(`${this.API_URL}/productos/${productId}/verificar-pedidos`, {
+      headers: this.authService.getAuthHeaders()
+    });
   }
 
   private getMockProducts(): Observable<ProductoDTO[]> {
