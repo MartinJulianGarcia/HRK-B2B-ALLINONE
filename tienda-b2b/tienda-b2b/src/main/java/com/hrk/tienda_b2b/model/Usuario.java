@@ -41,6 +41,9 @@ public class Usuario {
     @Column(name = "activo")
     private Boolean activo = true;
 
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = false;
+
     // Constructor para registro
     public Usuario(String nombreRazonSocial, String cuit, String email, String password, TipoUsuario tipoUsuario) {
         this.nombreRazonSocial = nombreRazonSocial;
@@ -50,5 +53,6 @@ public class Usuario {
         this.tipoUsuario = tipoUsuario;
         this.fechaCreacion = LocalDateTime.now();
         this.activo = true;
+        this.mustChangePassword = false;
     }
 }

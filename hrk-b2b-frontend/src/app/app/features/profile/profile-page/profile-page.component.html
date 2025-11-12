@@ -131,6 +131,78 @@
             <small class="form-text">El email no se puede modificar</small>
           </div>
 
+          <div class="form-group" *ngIf="!user?.mustChangePassword">
+            <button
+              type="button"
+              class="btn btn-outline"
+              (click)="toggleCambioPassword()"
+              [disabled]="guardando || cambiandoPassword"
+            >
+              {{ mostrarCambioPassword ? 'Cancelar cambio de contraseña' : 'Cambiar contraseña' }}
+            </button>
+          </div>
+
+          <div class="info-message" *ngIf="user?.mustChangePassword">
+            Por seguridad, debes definir una nueva contraseña para continuar.
+          </div>
+
+          <div class="password-panel" *ngIf="mostrarCambioPassword || user?.mustChangePassword">
+            <div class="form-group">
+              <label for="passwordActual" class="form-label">Contraseña actual:</label>
+              <input
+                type="password"
+                id="passwordActual"
+                [(ngModel)]="passwordForm.passwordActual"
+                class="form-control"
+                [disabled]="cambiandoPassword"
+                autocomplete="current-password"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="nuevaPassword" class="form-label">Nueva contraseña:</label>
+              <input
+                type="password"
+                id="nuevaPassword"
+                [(ngModel)]="passwordForm.nuevaPassword"
+                class="form-control"
+                [disabled]="cambiandoPassword"
+                autocomplete="new-password"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="confirmarPassword" class="form-label">Repetir contraseña:</label>
+              <input
+                type="password"
+                id="confirmarPassword"
+                [(ngModel)]="passwordForm.confirmarPassword"
+                class="form-control"
+                [disabled]="cambiandoPassword"
+                autocomplete="new-password"
+              >
+            </div>
+
+            <div *ngIf="errorPassword" class="error-message">
+              {{ errorPassword }}
+            </div>
+            <div *ngIf="mensajePassword" class="success-message">
+              {{ mensajePassword }}
+            </div>
+
+            <div class="form-actions form-actions-inline">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                (click)="guardarNuevaPassword()"
+                [disabled]="cambiandoPassword"
+              >
+                <span *ngIf="!cambiandoPassword">Guardar nueva contraseña</span>
+                <span *ngIf="cambiandoPassword">Guardando...</span>
+              </button>
+            </div>
+          </div>
+
           <div *ngIf="error" class="error-message">
             {{ error }}
           </div>

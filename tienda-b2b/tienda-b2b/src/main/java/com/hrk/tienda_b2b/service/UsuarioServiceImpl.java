@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.security.SecureRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +44,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .tipoUsuario(TipoUsuario.CLIENTE) // Por defecto es CLIENTE
                 .fechaCreacion(LocalDateTime.now())
                 .activo(true)
+                .mustChangePassword(false)
                 .build();
 
         return usuarioRepository.save(usuario);
@@ -55,6 +57,14 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         if (!passwordEncoder.matches(request.getPassword(), usuario.getPassword())) {
             throw new IllegalArgumentException("Credenciales inválidas");
+        }
+
+        if (passwordEncoder.needsMigration(usuario.getPassword())) {
+            usuario.setPassword(passwordEncoder.encode(request.getPassword()));
+            if (usuario.getMustChangePassword() == null) {
+                usuario.setMustChangePassword(false);
+            }
+            usuario = usuarioRepository.save(usuario);
         }
 
         return usuario;
@@ -124,5 +134,57 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .or(() -> usuarioRepository.findFirstByActivoTrueOrderByIdAsc())
                 .map(usuario -> usuario.getId().equals(usuarioId))
                 .orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public Usuario actualizarPassword(Usuario usuario, String nuevaPassword, boolean mustChangePassword) {
+        usuario.setPassword(passwordEncoder.encode(nuevaPassword));
+        usuario.setMustChangePassword(mustChangePassword);
+        return usuarioRepository.save(usuario);
+    }
+
+    @Override
+    public String generarPasswordTemporal() {
+        final String caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*";
+        final int longitud = 12;
+        SecureRandom random = new SecureRandom();
+        StringBuilder builder = new StringBuilder(longitud);
+        for (int i = 0; i < longitud; i++) {
+            int index = random.nextInt(caracteres.length());
+            builder.append(caracteres.charAt(index));
+        }
+        return builder.toString();
+    }
+
+    @Override
+    @Transactional
+    public Usuario cambiarPassword(Usuario usuario, String passwordActual, String nuevaPassword, boolean validarPasswordActual) {
+        if (usuario == null) {
+            throw new IllegalArgumentException("Usuario no válido");
+        }
+        if (nuevaPassword == null || nuevaPassword.trim().length() < 6) {
+            throw new IllegalArgumentException("La nueva contraseña debe tener al menos 6 caracteres");
+        }
+
+        if (validarPasswordActual) {
+            if (passwordActual == null || passwordActual.isBlank()) {
+                throw new IllegalArgumentException("Debes ingresar tu contraseña actual");
+            }
+            if (!passwordEncoder.matches(passwordActual, usuario.getPassword())) {
+                throw new IllegalArgumentException("La contraseña actual no es correcta");
+            }
+        } else if (passwordActual != null && !passwordActual.isBlank()) {
+            // Si no es obligatorio pero llega, validar y fallar si no coincide
+            if (!passwordEncoder.matches(passwordActual, usuario.getPassword())) {
+                throw new IllegalArgumentException("La contraseña actual no es correcta");
+            }
+        }
+
+        if (passwordEncoder.matches(nuevaPassword, usuario.getPassword())) {
+            throw new IllegalArgumentException("La nueva contraseña debe ser diferente a la actual");
+        }
+
+        return actualizarPassword(usuario, nuevaPassword, false);
     }
 }

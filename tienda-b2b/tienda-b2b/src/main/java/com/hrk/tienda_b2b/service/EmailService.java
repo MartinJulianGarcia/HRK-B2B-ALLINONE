@@ -17,7 +17,7 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    public void enviarContraseña(String emailDestinatario, String nombreUsuario, String contraseña) {
+    public void enviarPasswordTemporal(String emailDestinatario, String nombreUsuario, String passwordTemporal) {
         // Verificar si el email está configurado
         if (fromEmail == null || fromEmail.isEmpty() || fromEmail.contains("tu-email")) {
             System.err.println("🔴 [EMAIL SERVICE] Email no configurado en application.properties");
@@ -37,13 +37,13 @@ public class EmailService {
             
             String cuerpo = String.format(
                 "Hola %s,\n\n" +
-                "Has solicitado recuperar tu contraseña.\n\n" +
-                "Tu contraseña es: %s\n\n" +
-                "Por favor, guarda esta información de forma segura.\n\n" +
+                "Has solicitado restablecer tu contraseña.\n\n" +
+                "Tu nueva contraseña temporal es: %s\n\n" +
+                "Por seguridad, deberás cambiarla cuando inicies sesión.\n\n" +
                 "Si no solicitaste este correo, puedes ignorarlo.\n\n" +
                 "Saludos,\n" +
                 "Equipo HRK B2B",
-                nombreUsuario, contraseña
+                nombreUsuario, passwordTemporal
             );
             
             message.setText(cuerpo);

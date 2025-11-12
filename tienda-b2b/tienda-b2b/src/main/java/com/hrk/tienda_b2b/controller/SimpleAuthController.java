@@ -6,6 +6,7 @@ import com.hrk.tienda_b2b.dto.UsuarioDTO;
 import com.hrk.tienda_b2b.model.Usuario;
 import com.hrk.tienda_b2b.service.UsuarioService;
 import com.hrk.tienda_b2b.service.EmailService;
+import com.hrk.tienda_b2b.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,7 @@ public class SimpleAuthController {
     
     private final UsuarioService usuarioService;
     private final EmailService emailService;
+    private final JwtService jwtService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
@@ -31,12 +33,14 @@ public class SimpleAuthController {
         try {
             Usuario usuario = usuarioService.registrar(request);
             UsuarioDTO usuarioDTO = UsuarioDTO.fromEntity(usuario);
+            String token = jwtService.generateToken(usuario);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Usuario registrado exitosamente");
             response.put("usuario", usuarioDTO);
-            response.put("token", "fake-token-for-testing");
+            response.put("token", token);
+            response.put("mustChangePassword", usuarioDTO.getMustChangePassword());
             
             log.info("🟢 [SIMPLE] Usuario registrado: {}", usuario.getEmail());
             return ResponseEntity.ok(response);
@@ -57,12 +61,14 @@ public class SimpleAuthController {
         try {
             Usuario usuario = usuarioService.login(request);
             UsuarioDTO usuarioDTO = UsuarioDTO.fromEntity(usuario);
+            String token = jwtService.generateToken(usuario);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Login exitoso");
             response.put("usuario", usuarioDTO);
-            response.put("token", "fake-token-for-testing");
+            response.put("token", token);
+            response.put("mustChangePassword", usuarioDTO.getMustChangePassword());
             
             log.info("🟢 [SIMPLE] Login exitoso: {}", usuario.getEmail());
             return ResponseEntity.ok(response);
@@ -105,19 +111,20 @@ public class SimpleAuthController {
                 return ResponseEntity.ok(errorResponse);
             }
 
-            // Enviar email con la contraseña
-            // Nota: En este sistema las contraseñas se almacenan en texto plano
-            emailService.enviarContraseña(
+            String passwordTemporal = usuarioService.generarPasswordTemporal();
+            usuarioService.actualizarPassword(usuario, passwordTemporal, true);
+
+            emailService.enviarPasswordTemporal(
                 usuario.getEmail(),
                 usuario.getNombreRazonSocial(),
-                usuario.getPassword()
+                passwordTemporal
             );
 
             log.info("🟢 [SIMPLE] Email de recuperación enviado a: {}", email);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Se ha enviado un email con tu contraseña a " + email);
+            response.put("message", "Se ha enviado un email con una contraseña temporal a " + email);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

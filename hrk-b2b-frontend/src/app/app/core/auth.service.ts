@@ -12,6 +12,7 @@ export interface Usuario {
   tipoUsuario: 'CLIENTE' | 'ADMIN';
   fechaCreacion: string;
   activo: boolean;
+  mustChangePassword?: boolean;
 }
 
 export interface Cliente {
@@ -222,6 +223,33 @@ export class AuthService {
       catchError(error => {
         console.error('Error al cambiar rol:', error);
         return throwError(() => new Error('Error al cambiar rol'));
+      })
+    );
+  }
+
+  cambiarPassword(usuarioId: number, payload: { passwordActual?: string; nuevaPassword: string; confirmarPassword?: string }): Observable<Usuario> {
+    return this.http.put<{ success: boolean; usuario: Usuario }>(
+      `${this.API_URL}/usuarios/${usuarioId}/password`,
+      payload,
+      { headers: this.getAuthHeaders() }
+    ).pipe(
+      map(response => {
+        if (!response || !response.success || !response.usuario) {
+          throw new Error('Respuesta inválida al cambiar la contraseña');
+        }
+        const usuarioActualizado = response.usuario;
+        const currentUser = this.getCurrentUser();
+        if (currentUser && currentUser.id === usuarioActualizado.id) {
+          this.currentUserSubject.next(usuarioActualizado);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('currentUser', JSON.stringify(usuarioActualizado));
+          }
+        }
+        return usuarioActualizado;
+      }),
+      catchError(error => {
+        const errorMessage = error.error?.error || error.error?.message || 'Error al cambiar la contraseña';
+        return throwError(() => new Error(errorMessage));
       })
     );
   }

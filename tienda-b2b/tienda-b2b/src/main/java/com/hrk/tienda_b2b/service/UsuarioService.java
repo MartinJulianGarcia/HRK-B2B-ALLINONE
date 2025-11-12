@@ -33,4 +33,10 @@ public interface UsuarioService {
     boolean existeAdministradorActivo();
 
     boolean puedeCambiarRolAAdmin(Long usuarioId);
+
+    Usuario actualizarPassword(Usuario usuario, String nuevaPassword, boolean mustChangePassword);
+
+    String generarPasswordTemporal();
+
+    Usuario cambiarPassword(Usuario usuario, String passwordActual, String nuevaPassword, boolean validarPasswordActual);
 }

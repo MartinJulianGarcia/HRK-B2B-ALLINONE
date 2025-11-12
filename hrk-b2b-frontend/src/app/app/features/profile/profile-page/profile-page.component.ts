@@ -28,6 +28,15 @@ export class ProfilePageComponent implements OnInit {
   private readonly CODIGO_ADMIN = 'cascuino'; // Código hardcodeado para cambio a admin
   mostrarBotonCambioRol = false;
   verificandoPermisoCambioRol = false;
+  mostrarCambioPassword = false;
+  cambiandoPassword = false;
+  passwordForm = {
+    passwordActual: '',
+    nuevaPassword: '',
+    confirmarPassword: ''
+  };
+  errorPassword = '';
+  mensajePassword = '';
 
   constructor(
     public authService: AuthService,
@@ -50,6 +59,10 @@ export class ProfilePageComponent implements OnInit {
       // Simular fecha de registro (en un caso real vendría del backend)
       this.memberSince = this.getMemberSince();
       this.actualizarDisponibilidadCambioRol();
+      if (this.user.mustChangePassword) {
+        this.editProfile();
+        this.mostrarCambioPassword = true;
+      }
     } else {
       // Si no hay usuario logueado, redirigir al login
       this.router.navigate(['/login']);
@@ -83,15 +96,24 @@ export class ProfilePageComponent implements OnInit {
       cuit: this.user.cuit || ''
     };
     this.error = '';
+    if (this.user.mustChangePassword) {
+      this.mostrarCambioPassword = true;
+    }
   }
 
   cancelarEdicion(): void {
+    if (this.user?.mustChangePassword) {
+      this.error = 'Debes actualizar tu contraseña antes de salir.';
+      return;
+    }
     this.editando = false;
     this.editForm = {
       nombreRazonSocial: '',
       cuit: ''
     };
     this.error = '';
+    this.resetPasswordForm();
+    this.mostrarCambioPassword = false;
   }
 
   guardarCambios(): void {
@@ -129,6 +151,81 @@ export class ProfilePageComponent implements OnInit {
         this.guardando = false;
       }
     });
+  }
+
+  toggleCambioPassword(): void {
+    if (this.user?.mustChangePassword) {
+      return;
+    }
+    this.mostrarCambioPassword = !this.mostrarCambioPassword;
+    this.errorPassword = '';
+    this.mensajePassword = '';
+    if (!this.mostrarCambioPassword) {
+      this.resetPasswordForm();
+    } else if (this.user?.mustChangePassword) {
+      // Si debe cambiar la contraseña, asegurarse de limpiar campos
+      this.passwordForm.passwordActual = '';
+    }
+  }
+
+  guardarNuevaPassword(): void {
+    if (!this.user) {
+      return;
+    }
+
+    this.errorPassword = '';
+    this.mensajePassword = '';
+
+    if (!this.passwordForm.nuevaPassword || this.passwordForm.nuevaPassword.trim().length < 6) {
+      this.errorPassword = 'La nueva contraseña debe tener al menos 6 caracteres';
+      return;
+    }
+
+    if (this.passwordForm.nuevaPassword !== this.passwordForm.confirmarPassword) {
+      this.errorPassword = 'Las contraseñas no coinciden';
+      return;
+    }
+
+    if (!this.authService.isAdmin() && (!this.passwordForm.passwordActual || this.passwordForm.passwordActual.trim().length === 0)) {
+      this.errorPassword = 'Debes ingresar tu contraseña actual';
+      return;
+    }
+
+    this.cambiandoPassword = true;
+
+    this.authService.cambiarPassword(this.user.id, {
+      passwordActual: this.passwordForm.passwordActual || undefined,
+      nuevaPassword: this.passwordForm.nuevaPassword.trim(),
+      confirmarPassword: this.passwordForm.confirmarPassword.trim()
+    }).subscribe({
+      next: (usuarioActualizado) => {
+        this.user = usuarioActualizado;
+        this.cambiandoPassword = false;
+        this.mensajePassword = 'Contraseña actualizada correctamente';
+        this.passwordForm.passwordActual = '';
+        this.passwordForm.nuevaPassword = '';
+        this.passwordForm.confirmarPassword = '';
+        if (this.user.mustChangePassword) {
+          this.user.mustChangePassword = false;
+        }
+      },
+      error: (error) => {
+        console.error('Error al cambiar contraseña:', error);
+        this.errorPassword = error.message || 'Error al cambiar la contraseña';
+        this.cambiandoPassword = false;
+      }
+    });
+  }
+
+  private resetPasswordForm(): void {
+    this.passwordForm = {
+      passwordActual: '',
+      nuevaPassword: '',
+      confirmarPassword: ''
+    };
+    this.errorPassword = '';
+    this.mensajePassword = '';
+    this.cambiandoPassword = false;
   }
 
   logout(): void {

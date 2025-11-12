@@ -5,9 +5,11 @@ import com.hrk.tienda_b2b.model.Usuario;
 import com.hrk.tienda_b2b.model.TipoUsuario;
 import com.hrk.tienda_b2b.service.UsuarioService;
 import com.hrk.tienda_b2b.repository.UsuarioRepository;
+import com.hrk.tienda_b2b.dto.ChangePasswordRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.HashMap;
 import java.util.List;
@@ -116,6 +118,61 @@ public class UsuarioController {
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PutMapping("/{id}/password")
+    public ResponseEntity<?> cambiarPassword(@PathVariable Long id,
+                                             @RequestBody ChangePasswordRequest request,
+                                             @AuthenticationPrincipal Usuario usuarioAutenticado) {
+        if (usuarioAutenticado == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        boolean esPropio = usuarioAutenticado.getId() != null && usuarioAutenticado.getId().equals(id);
+        boolean esAdmin = usuarioAutenticado.getTipoUsuario() == TipoUsuario.ADMIN;
+
+        if (!esPropio && !esAdmin) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "No tenés permisos para cambiar esta contraseña");
+            return ResponseEntity.status(403).body(error);
+        }
+
+        if (request == null || request.getNuevaPassword() == null || request.getNuevaPassword().isBlank()) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "La nueva contraseña es obligatoria");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        if (request.getConfirmarPassword() != null && !request.getConfirmarPassword().equals(request.getNuevaPassword())) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Las contraseñas no coinciden");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        try {
+            Usuario usuario = usuarioService.obtenerPorId(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            Usuario usuarioActualizado = usuarioService.cambiarPassword(
+                    usuario,
+                    request.getPasswordActual(),
+                    request.getNuevaPassword(),
+                    !esAdmin || esPropio
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("usuario", UsuarioDTO.fromEntity(usuarioActualizado));
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error al cambiar la contraseña: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
         }
     }
 }
