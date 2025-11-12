@@ -164,9 +164,9 @@ public class MercadoPagoService {
             // Solo usar backUrls si la URL es HTTPS (producción o ngrok)
             if (frontendUrl != null && frontendUrl.startsWith("https://")) {
                 backUrls = PreferenceBackUrlsRequest.builder()
-                        .success(frontendUrl + "/orders-history?payment_status=success&preference_id=" + pedidoId)
-                        .failure(frontendUrl + "/orders-history?payment_status=failure&preference_id=" + pedidoId)
-                        .pending(frontendUrl + "/orders-history?payment_status=pending&preference_id=" + pedidoId)
+                        .success(frontendUrl + "/orders-history")
+                        .failure(frontendUrl + "/orders-history")
+                        .pending(frontendUrl + "/orders-history")
                         .build();
                 log.info("🔵 [MERCADOPAGO] Usando backUrls con HTTPS: {}", frontendUrl);
             } else {

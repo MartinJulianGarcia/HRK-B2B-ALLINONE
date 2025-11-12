@@ -51,6 +51,28 @@ public class SecurityConfig {
                                 "/**/*.svg",
                                 "/**/*.webp"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/catalog",
+                                "/catalog/**",
+                                "/cart",
+                                "/cart/**",
+                                "/profile",
+                                "/profile/**",
+                                "/orders-history",
+                                "/orders-history/**",
+                                "/devolucion",
+                                "/devolucion/**",
+                                "/login",
+                                "/register",
+                                "/home",
+                                "/info",
+                                "/add-product",
+                                "/add-product/**",
+                                "/edit-product",
+                                "/edit-product/**",
+                                "/dashboard",
+                                "/dashboard/**"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/productos/**").permitAll()
                         .anyRequest().authenticated()
                 );
