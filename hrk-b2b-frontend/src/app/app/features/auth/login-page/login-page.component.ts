@@ -36,8 +36,11 @@ export class LoginPageComponent {
     this.authService.login(this.credentials).subscribe({
       next: (user) => {
         this.loading = false;
-        // Todos los usuarios van al catálogo después del login
-        this.router.navigate(['/catalog']);
+        if (user?.mustChangePassword) {
+          this.router.navigate(['/profile']);
+        } else {
+          this.router.navigate(['/catalog']);
+        }
       },
       error: (err) => {
         this.loading = false;

@@ -115,6 +115,14 @@
           Cancelar
         </button>
       </div>
+
+      <div class="recuperacion-overlay" *ngIf="recuperando">
+        <div class="overlay-content">
+          <div class="mail-icon">📨</div>
+          <p>Enviando email de recuperación...</p>
+          <div class="spinner"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
