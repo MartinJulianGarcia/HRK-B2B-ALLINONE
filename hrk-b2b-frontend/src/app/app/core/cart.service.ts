@@ -14,6 +14,7 @@ export interface CarritoItemDTO {
   varianteId: number;
   cantidad: number;
   precioUnitario: number;
+  stockDisponible: number;
   sku: string;
   color: string;
   talle: string;
@@ -54,7 +55,11 @@ export class CartService {
         // Cargar items del carrito
         const savedItems = localStorage.getItem(this.CART_STORAGE_KEY);
         if (savedItems) {
-          this.carritoItems = JSON.parse(savedItems);
+          const parsed: CarritoItemDTO[] = JSON.parse(savedItems);
+          this.carritoItems = parsed.map(item => ({
+            ...item,
+            stockDisponible: item.stockDisponible ?? Number.MAX_SAFE_INTEGER
+          }));
           console.log('🔵 [CART SERVICE] Carrito cargado desde localStorage:', this.carritoItems);
         }
 
@@ -109,7 +114,11 @@ export class CartService {
     });
   }
   
-  agregarItem(carritoId: number, varianteId: number, cantidad: number): Observable<void> {
+  agregarItem(
+    carritoId: number,
+    varianteId: number,
+    cantidad: number
+  ): Observable<{ ajustado: boolean; cantidadAgregada: number; cantidadFinal: number; stockDisponible: number }> {
     return new Observable(observer => {
       // Obtener datos reales de la variante del backend
       this.http.get<any>(`${BACKEND_BASE_URL}/api/productos`).subscribe({
@@ -135,37 +144,91 @@ export class CartService {
           
           console.log('🔵 [CART SERVICE] Variante encontrada:', varianteEncontrada);
           console.log('🔵 [CART SERVICE] Producto padre:', productoPadre);
-          
+          const stockDisponible = Number(varianteEncontrada.stockDisponible) || 0;
+          let cantidadSolicitada = Math.max(0, cantidad);
+          if (cantidadSolicitada === 0 || stockDisponible === 0) {
+            console.warn('🔴 [CART SERVICE] No hay stock disponible para la variante:', varianteId);
+            observer.next({
+              ajustado: true,
+              cantidadAgregada: 0,
+              cantidadFinal: 0,
+              stockDisponible
+            });
+            observer.complete();
+            return;
+          }
+
           // Buscar si ya existe el item en el carrito
           const existingItem = this.carritoItems.find(item => item.varianteId === varianteId);
-          
+          let cantidadAgregada = cantidadSolicitada;
+          let cantidadFinal: number;
+
           if (existingItem) {
-            existingItem.cantidad += cantidad;
+            const totalDeseado = existingItem.cantidad + cantidadSolicitada;
+            cantidadFinal = Math.min(totalDeseado, stockDisponible);
+            cantidadAgregada = Math.max(0, cantidadFinal - existingItem.cantidad);
+
+            if (cantidadAgregada <= 0) {
+              console.warn('🟡 [CART SERVICE] Carrito ya tiene el máximo de stock para la variante:', varianteId);
+              observer.next({
+                ajustado: true,
+                cantidadAgregada: 0,
+                cantidadFinal: existingItem.cantidad,
+                stockDisponible
+              });
+              observer.complete();
+              return;
+            }
+
+            existingItem.cantidad = cantidadFinal;
             existingItem.subtotal = existingItem.cantidad * existingItem.precioUnitario;
+            existingItem.stockDisponible = stockDisponible;
           } else {
+            cantidadFinal = Math.min(cantidadSolicitada, stockDisponible);
+            cantidadAgregada = cantidadFinal;
+
+            if (cantidadFinal <= 0) {
+              observer.next({
+                ajustado: true,
+                cantidadAgregada: 0,
+                cantidadFinal: 0,
+                stockDisponible
+              });
+              observer.complete();
+              return;
+            }
+
             // Generar ID único para el item
             const newId = Math.max(0, ...this.carritoItems.map(item => item.id)) + 1;
             const newItem: CarritoItemDTO = {
               id: newId,
               varianteId: varianteId,
-              cantidad: cantidad,
+              cantidad: cantidadFinal,
               precioUnitario: varianteEncontrada.precio,
+              stockDisponible,
               sku: varianteEncontrada.sku,
               color: varianteEncontrada.color,
               talle: varianteEncontrada.talle,
               productoNombre: productoPadre.nombre,
-              subtotal: cantidad * varianteEncontrada.precio
+              subtotal: cantidadFinal * varianteEncontrada.precio
             };
             this.carritoItems.push(newItem);
           }
-          
-          console.log(`Agregando ${cantidad} unidades de variante ${varianteId} al carrito ${carritoId}`);
+
+          const ajustado = cantidadAgregada !== cantidadSolicitada;
+
+          console.log(`Agregando ${cantidadAgregada} unidades (solicitadas ${cantidadSolicitada}) de variante ${varianteId} al carrito ${carritoId}`);
           console.log('🔵 [CART SERVICE] Carrito actualizado:', this.carritoItems);
-          
+
           // Guardar el carrito actualizado en localStorage
           this.saveCarritoToStorage();
-          
-          observer.next();
+
+          observer.next({
+            ajustado,
+            cantidadAgregada,
+            cantidadFinal: existingItem ? existingItem.cantidad : cantidadFinal,
+            stockDisponible
+          });
           observer.complete();
         },
         error: (error) => {
@@ -229,18 +292,27 @@ export class CartService {
   }
 
   // Actualizar cantidad de un item
-  actualizarCantidad(itemId: number, nuevaCantidad: number): void {
+  actualizarCantidad(itemId: number, nuevaCantidad: number): { ajustado: boolean; cantidadFinal: number; stockDisponible: number } | null {
     const item = this.carritoItems.find(item => item.id === itemId);
-    if (item) {
-      if (nuevaCantidad <= 0) {
-        this.removerItem(itemId);
-      } else {
-        item.cantidad = nuevaCantidad;
-        item.subtotal = item.cantidad * item.precioUnitario;
-        this.saveCarritoToStorage();
-        console.log('🔵 [CART SERVICE] Cantidad actualizada para item:', itemId, 'Nueva cantidad:', nuevaCantidad);
-      }
+    if (!item) {
+      return null;
     }
+
+    if (nuevaCantidad <= 0) {
+      this.removerItem(itemId);
+      return { ajustado: false, cantidadFinal: 0, stockDisponible: item.stockDisponible };
+    }
+
+    const stockDisponible = item.stockDisponible ?? Number.MAX_SAFE_INTEGER;
+    const cantidadFinal = Math.min(nuevaCantidad, stockDisponible);
+    const ajustado = cantidadFinal !== nuevaCantidad;
+
+    item.cantidad = cantidadFinal;
+    item.subtotal = item.cantidad * item.precioUnitario;
+    this.saveCarritoToStorage();
+    console.log('🔵 [CART SERVICE] Cantidad actualizada para item:', itemId, 'Nueva cantidad:', cantidadFinal);
+
+    return { ajustado, cantidadFinal, stockDisponible };
   }
 
   // Obtener carrito ID (público para usar en componentes)

@@ -351,20 +351,38 @@ export class HomePageComponent implements OnInit, OnDestroy {
       // Agregar todos los items al carrito
       let completedItems = 0;
       const totalItems = itemsToAdd.length;
+      let itemsAgregados = 0;
+      const mensajes: string[] = [];
       
       if (totalItems === 0) return;
       
       itemsToAdd.forEach(({ variante, quantity, color, talle }) => {
-        const numeroTalle = talle.replace('Talle ', '');
-        
         this.cartService.agregarItem(carritoId, variante.id, quantity).subscribe({
-          next: () => {
+          next: (resultado) => {
             completedItems++;
-            
+
+            if (resultado.cantidadAgregada <= 0) {
+              mensajes.push(`Sin stock disponible para ${variante.color} - ${variante.talle}.`);
+            } else {
+              itemsAgregados += resultado.cantidadAgregada;
+              if (resultado.ajustado) {
+                mensajes.push(`Se ajustó ${variante.sku} a ${resultado.cantidadFinal} unidades disponibles.`);
+              }
+            }
+
             if (completedItems === totalItems) {
-              // Mostrar mensaje de éxito final
-              this.abrirModal('Se agregaron todos los items al carrito ✅', true);
-              this.updateCartCount();
+              if (itemsAgregados > 0) {
+                const texto = mensajes.length
+                  ? `Se agregaron ${itemsAgregados} unidades al carrito ✅\n\n${mensajes.join('\n')}`
+                  : 'Se agregaron todos los items al carrito ✅';
+                this.abrirModal(texto, true);
+                this.updateCartCount();
+              } else {
+                const texto = mensajes.length
+                  ? `No se pudieron agregar productos:\n\n${mensajes.join('\n')}`
+                  : 'No se pudo agregar ningún producto al carrito.';
+                this.abrirModal(texto, false);
+              }
             }
           },
           error: (error) => {

@@ -76,13 +76,17 @@ export class ProductGridComponent implements OnInit {
     }
     
     const key = `${c}-${t}`;
-    this.cantidades[key] = cantidad;
+    const cantidadNormalizada = this.normalizarCantidad(c, t, cantidad);
+    this.cantidades[key] = cantidadNormalizada;
+    if (cantidadNormalizada !== cantidad) {
+      event.target.value = cantidadNormalizada.toString();
+    }
     
-    console.log(`🔍 [INPUT CHANGE] ${c}-${t}: cantidad=${cantidad}, key=${key}`);
+    console.log(`🔍 [INPUT CHANGE] ${c}-${t}: cantidad=${cantidadNormalizada}, key=${key}`);
     console.log(`🔍 [CANTIDADES MAP]`, this.cantidades);
     
     // Emitir inmediatamente al carrito si la cantidad es válida
-    this.emitToCart(c, t, cantidad);
+    this.emitToCart(c, t, cantidadNormalizada);
   }
 
   onBlur(c: string, t: string, event: any) {
@@ -97,21 +101,25 @@ export class ProductGridComponent implements OnInit {
     }
     
     const key = `${c}-${t}`;
-    this.cantidades[key] = cantidad;
+    const cantidadNormalizada = this.normalizarCantidad(c, t, cantidad);
+    this.cantidades[key] = cantidadNormalizada;
+    if (cantidadNormalizada !== cantidad) {
+      event.target.value = cantidadNormalizada.toString();
+    }
     
     // Emitir al carrito cuando el usuario termina de escribir
-    this.emitToCart(c, t, cantidad);
+    this.emitToCart(c, t, cantidadNormalizada);
   }
 
   private emitToCart(c: string, t: string, cantidad: number) {
-    if (cantidad <= 0) return;
+    const cantidadNormalizada = this.normalizarCantidad(c, t, cantidad);
+    if (cantidadNormalizada <= 0) {
+      return;
+    }
     const v = this.findVariante(c, t); 
     if (!v) return;
-    
-    // Solo agregar al carrito si no excede el stock
-    if (cantidad <= v.stockDisponible) {
-      this.add.emit({ varianteId: v.id, cantidad });
-    }
+
+    this.add.emit({ varianteId: v.id, cantidad: cantidadNormalizada });
   }
 
   overStock(c: string, t: string): boolean {
@@ -139,7 +147,8 @@ export class ProductGridComponent implements OnInit {
       event.preventDefault(); // Prevenir el comportamiento por defecto
       
       const currentValue = this.getCantidad(c, t);
-      const newValue = event.key === 'ArrowUp' ? currentValue + 1 : Math.max(0, currentValue - 1);
+      let newValue = event.key === 'ArrowUp' ? currentValue + 1 : Math.max(0, currentValue - 1);
+      newValue = this.normalizarCantidad(c, t, newValue);
       
       // Actualizar el valor directamente
       const key = `${c}-${t}`;
@@ -160,5 +169,23 @@ export class ProductGridComponent implements OnInit {
     if (event.key === 'Enter') {
       (event.target as HTMLInputElement).blur();
     }
+  }
+
+  private normalizarCantidad(c: string, t: string, valor: number): number {
+    if (valor <= 0) {
+      return 0;
+    }
+
+    const variante = this.findVariante(c, t);
+    if (!variante) {
+      return valor;
+    }
+
+    if (valor > variante.stockDisponible) {
+      console.log(`🟡 [STOCK LIMIT] ${c}-${t}: ajustando ${valor} a stock ${variante.stockDisponible}`);
+      return variante.stockDisponible;
+    }
+
+    return valor;
   }
 }

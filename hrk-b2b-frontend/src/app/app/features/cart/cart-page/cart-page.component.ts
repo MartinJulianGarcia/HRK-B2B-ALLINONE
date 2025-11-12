@@ -434,9 +434,22 @@ export class CartPageComponent implements OnInit {
       // Si la cantidad es 0, eliminar el item
       this.eliminarItem(itemId);
     } else {
-      this.cart.actualizarCantidad(itemId, nuevaCantidad);
-      this.loadCarritoItems(); // Recargar la lista para actualizar totales
-      this.updateCartCount(); // Actualizar contador
+      const resultado = this.cart.actualizarCantidad(itemId, nuevaCantidad);
+      if (!resultado) {
+        return;
+      }
+      if (resultado.cantidadFinal === 0) {
+        this.eliminarItem(itemId);
+      } else {
+        if (resultado.ajustado) {
+          this.abrirModal(`⚠️ La cantidad se ajustó al máximo disponible (${resultado.stockDisponible}).`);
+        } else {
+          this.abrirModal('Cantidad actualizada en el carrito ✅', true);
+        }
+        event.target.value = resultado.cantidadFinal.toString();
+        this.loadCarritoItems(); // Recargar la lista para actualizar totales
+        this.updateCartCount(); // Actualizar contador
+      }
     }
   }
 

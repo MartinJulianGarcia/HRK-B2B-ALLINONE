@@ -106,7 +106,23 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   onAdd(varianteId: number, cantidad: number) {
     if (!this.carritoId) return;
-    this.cart.agregarItem(this.carritoId, varianteId, cantidad).subscribe();
+    this.cart.agregarItem(this.carritoId, varianteId, cantidad).subscribe({
+      next: (resultado) => {
+        if (resultado.cantidadAgregada <= 0) {
+          alert('No hay stock disponible para este producto.');
+          return;
+        }
+        if (resultado.ajustado) {
+          alert(`La cantidad se ajustó al máximo disponible (${resultado.stockDisponible}).`);
+        } else {
+          alert('Producto agregado al carrito ✅');
+        }
+      },
+      error: (error) => {
+        console.error('Error al agregar item al carrito:', error);
+        alert('Error al agregar el producto al carrito.');
+      }
+    });
   }
 
   logout(): void {
