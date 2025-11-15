@@ -133,6 +133,13 @@ public class ProductoService {
         }
         
         // 1. Crear el producto base (SIN precio ni stock, esos van en las variantes)
+        System.out.println("🔵 [SERVICE] ⚠️ DEBUG TIPO ANTES DE CREAR PRODUCTO:");
+        System.out.println("🔵 [SERVICE] - Tipo recibido: " + request.getTipo());
+        System.out.println("🔵 [SERVICE] - Tipo (clase): " + (request.getTipo() != null ? request.getTipo().getClass().getName() : "null"));
+        System.out.println("🔵 [SERVICE] - Tipo (name): " + (request.getTipo() != null ? request.getTipo().name() : "null"));
+        System.out.println("🔵 [SERVICE] - Tipo (toString): " + (request.getTipo() != null ? request.getTipo().toString() : "null"));
+        System.out.println("🔵 [SERVICE] - Tipo (bytes): " + (request.getTipo() != null ? request.getTipo().name().getBytes().length : "null"));
+        
         Producto producto = Producto.builder()
             .nombre(request.getNombre())
             .tipo(request.getTipo())
@@ -142,6 +149,10 @@ public class ProductoService {
             .build();
         
         System.out.println("🔵 [SERVICE] Producto base creado: " + producto.getNombre());
+        System.out.println("🔵 [SERVICE] ⚠️ DEBUG TIPO DESPUÉS DE CREAR PRODUCTO:");
+        System.out.println("🔵 [SERVICE] - Tipo en producto: " + producto.getTipo());
+        System.out.println("🔵 [SERVICE] - Tipo (name): " + (producto.getTipo() != null ? producto.getTipo().name() : "null"));
+        System.out.println("🔵 [SERVICE] - Tipo (bytes): " + (producto.getTipo() != null ? producto.getTipo().name().getBytes().length : "null"));
         
         // 2. Manejar imagen: usar la proporcionada o la por defecto
         if (request.getImagenUrl() != null && !request.getImagenUrl().isEmpty()) {

@@ -420,8 +420,14 @@ export class AddProductPageComponent implements OnInit {
   }
 
   onSkuChange(event: any): void {
-    // Convertir automáticamente a mayúsculas
-    const value = event.target.value.toUpperCase();
+    // Convertir automáticamente a mayúsculas y limitar a 11 caracteres
+    let value = event.target.value.toUpperCase();
+    
+    // Limitar a 11 caracteres
+    if (value.length > 11) {
+      value = value.substring(0, 11);
+    }
+    
     this.productData.sku = value;
     // Actualizar el valor del input para reflejar el cambio
     event.target.value = value;

@@ -21,14 +21,14 @@ public class Producto {
     private String descripcion;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private TipoProducto tipo;
 
     @Column(name = "imagen_url")
     private String imagenUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private Categoria categoria;
 
     @Column(nullable = false)

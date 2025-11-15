@@ -49,6 +49,9 @@ public class ProductoController {
             System.out.println("🔵 [CONTROLLER] Request recibido");
             System.out.println("🔵 [CONTROLLER] Nombre: " + request.getNombre());
             System.out.println("🔵 [CONTROLLER] Tipo: " + request.getTipo());
+            System.out.println("🔵 [CONTROLLER] Tipo (clase): " + (request.getTipo() != null ? request.getTipo().getClass().getName() : "null"));
+            System.out.println("🔵 [CONTROLLER] Tipo (nombre): " + (request.getTipo() != null ? request.getTipo().name() : "null"));
+            System.out.println("🔵 [CONTROLLER] Tipo (toString): " + (request.getTipo() != null ? request.getTipo().toString() : "null"));
             System.out.println("🔵 [CONTROLLER] Categoría: " + request.getCategoria());
             System.out.println("🔵 [CONTROLLER] SKU: " + request.getSku());
             System.out.println("🔵 [CONTROLLER] Colores: " + request.getColores());

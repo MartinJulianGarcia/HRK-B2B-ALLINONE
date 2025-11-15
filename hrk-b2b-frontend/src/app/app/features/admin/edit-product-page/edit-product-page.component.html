@@ -296,9 +296,11 @@
                 [(ngModel)]="productData.sku"
                 (input)="onSkuChange($event)"
                 required
+                maxlength="11"
                 class="form-control"
                 placeholder="Ej: REM-001-TJ"
               >
+              <small class="form-help">Máximo 11 caracteres</small>
             </div>
 
             <!-- Selección de Colores -->
