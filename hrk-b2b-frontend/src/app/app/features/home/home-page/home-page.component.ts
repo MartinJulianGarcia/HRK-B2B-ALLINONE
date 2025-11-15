@@ -124,7 +124,10 @@ export class HomePageComponent implements OnInit, OnDestroy {
       // Para 6+ productos: carrusel completo con navegación
       this.itemsPerView = 5;
       this.showNavigation = true;
+      // Asegurar que el último elemento esté completamente visible
+      // maxSlide debe ser el índice donde el último elemento visible es el último de la lista
       this.maxSlide = Math.max(0, productCount - this.itemsPerView);
+      // Asegurar que currentSlide no exceda maxSlide
       this.currentSlide = Math.min(this.currentSlide, this.maxSlide);
     }
   }
@@ -139,8 +142,40 @@ export class HomePageComponent implements OnInit, OnDestroy {
   nextSlide(): void {
     if (this.currentSlide < this.maxSlide) {
       this.currentSlide++;
+      // Asegurar que no exceda maxSlide
+      this.currentSlide = Math.min(this.currentSlide, this.maxSlide);
       this.updateSelectedProduct();
     }
+  }
+
+  // Método para calcular el desplazamiento del carrusel
+  getCarouselTransform(): string {
+    if (!this.showNavigation) {
+      return 'translateX(0%)';
+    }
+    
+    const totalItems = this.filteredProducts.length;
+    if (totalItems <= this.itemsPerView) {
+      return 'translateX(0%)';
+    }
+    
+    // Si estamos en el último slide, calcular el desplazamiento para que el último elemento esté completamente visible
+    if (this.currentSlide >= this.maxSlide) {
+      // Calcular el desplazamiento máximo para que el último elemento quede completamente visible
+      // El cálculo debe asegurar que el último itemPerView elementos queden visibles
+      const itemWidth = 100 / this.itemsPerView;
+      const totalWidth = totalItems * itemWidth;
+      const visibleWidth = 100; // El ancho visible es siempre 100%
+      // Calcular cuánto necesitamos desplazar para que el último elemento quede visible
+      // El último elemento está en la posición (totalItems - 1) * itemWidth
+      // Necesitamos desplazar para que quede dentro del área visible
+      const maxTranslate = Math.max(0, totalWidth - visibleWidth);
+      return `translateX(-${maxTranslate}%)`;
+    }
+    
+    // Cálculo normal para slides intermedios
+    const itemWidth = 100 / this.itemsPerView;
+    return `translateX(-${this.currentSlide * itemWidth}%)`;
   }
 
   updateSelectedProduct(): void {
@@ -169,14 +204,24 @@ export class HomePageComponent implements OnInit, OnDestroy {
     
     // Encontrar el índice del producto seleccionado y ajustar el carrusel
     const productIndex = this.filteredProducts.findIndex(p => p.id === producto.id);
-    if (productIndex !== -1) {
+    if (productIndex !== -1 && this.showNavigation) {
       const minVisibleIndex = this.currentSlide;
       const maxVisibleIndex = this.currentSlide + this.itemsPerView - 1;
 
       if (productIndex < minVisibleIndex) {
+        // Producto está a la izquierda del área visible, mover hacia la izquierda
         this.currentSlide = Math.max(0, productIndex);
       } else if (productIndex > maxVisibleIndex) {
-        this.currentSlide = Math.min(this.maxSlide, productIndex);
+        // Producto está a la derecha del área visible
+        // Calcular el slide necesario para que el producto quede completamente visible
+        // Si el producto está cerca del final, usar maxSlide para asegurar que quede visible
+        if (productIndex >= this.filteredProducts.length - this.itemsPerView) {
+          // Si está en los últimos itemsPerView elementos, ir al último slide
+          this.currentSlide = this.maxSlide;
+        } else {
+          // Si no, mover para que el producto quede visible
+          this.currentSlide = Math.min(this.maxSlide, productIndex - Math.floor(this.itemsPerView / 2));
+        }
       }
     }
   }

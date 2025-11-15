@@ -134,7 +134,7 @@ export class ProductsService {
     console.log('🔵 [FRONTEND] URL de subida (URL directa):', uploadUrl);
     
     const headers = this.authService.getAuthHeaders().delete('Content-Type');
-
+    
     return this.http.post<string>(uploadUrl, formData, {
       headers,
       responseType: 'text' as 'json'

@@ -279,7 +279,7 @@
 .carousel-container {
   position: relative;
   margin-bottom: 40px;
-  padding: 10px 40px; /* Más padding horizontal para evitar cortes laterales */
+  padding: 10px 50px; /* Más padding horizontal para evitar cortes laterales */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -290,8 +290,9 @@
   border-radius: 12px;
   position: relative;
   display: flex;
-  padding: 0 15px; /* Más padding interno para evitar cortes */
+  padding: 0 20px; /* Más padding interno para evitar cortes */
   width: 100%;
+  box-sizing: border-box;
 }
 
 .carousel-wrapper.centered {
@@ -303,6 +304,8 @@
   transition: transform 0.3s ease;
   width: 100%;
   max-width: 100%;
+  padding: 0 10px; /* Padding adicional para evitar cortes en los bordes */
+  box-sizing: border-box;
 }
 
 .carousel-wrapper.centered .carousel-track {
@@ -315,6 +318,14 @@
   cursor: pointer;
   min-width: 0; /* Asegurar que los elementos respeten el flex */
   flex-shrink: 0; /* Evitar que se compriman */
+  box-sizing: border-box;
+  /* Asegurar que el primer y último elemento tengan padding extra */
+  &:first-child {
+    padding-left: 15px;
+  }
+  &:last-child {
+    padding-right: 15px;
+  }
 }
 
 .product-card {

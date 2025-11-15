@@ -78,7 +78,7 @@
     <div class="carousel-wrapper" [class.centered]="!showNavigation">
       <div 
         class="carousel-track" 
-        [style.transform]="showNavigation ? 'translateX(' + (-currentSlide * (100 / itemsPerView)) + '%)' : 'translateX(0%)'"
+        [style.transform]="getCarouselTransform()"
       >
         <div 
           *ngFor="let producto of filteredProducts; let i = index" 
