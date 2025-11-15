@@ -57,9 +57,22 @@ export class AuthService {
     if (typeof window !== 'undefined' && window.localStorage) {
       const savedUser = localStorage.getItem('currentUser');
       const savedToken = localStorage.getItem('token');
+      console.log('🔵 [AUTH SERVICE] Constructor - savedUser:', savedUser ? 'exists' : 'null');
+      console.log('🔵 [AUTH SERVICE] Constructor - savedToken:', savedToken ? savedToken.substring(0, 20) + '...' : 'null');
       if (savedUser && savedToken) {
-        this.currentUserSubject.next(JSON.parse(savedUser));
-        this.tokenSubject.next(savedToken);
+        try {
+          const user = JSON.parse(savedUser);
+          this.currentUserSubject.next(user);
+          this.tokenSubject.next(savedToken);
+          console.log('🔵 [AUTH SERVICE] Usuario y token cargados desde localStorage');
+        } catch (error) {
+          console.error('🔴 [AUTH SERVICE] Error al parsear usuario desde localStorage:', error);
+          // Limpiar datos corruptos
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('token');
+        }
+      } else {
+        console.log('🔵 [AUTH SERVICE] No hay usuario o token en localStorage');
       }
     }
   }
@@ -73,53 +86,93 @@ export class AuthService {
   ];
 
   login(credentials: LoginRequest): Observable<Usuario> {
-    return this.http.post<AuthResponse>(`${this.API_URL}/auth/login`, credentials)
+    console.log('🔵 [AUTH SERVICE] Intentando login con email:', credentials.email);
+    return this.http.post<any>(`${this.API_URL}/auth/login`, credentials)
       .pipe(
         map(response => {
-          // Guardar token y usuario
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('currentUser', JSON.stringify(response.usuario));
+          console.log('🔵 [AUTH SERVICE] Respuesta del login:', response);
+          
+          // El backend puede devolver dos formatos:
+          // 1. { token, usuario } (formato antiguo)
+          // 2. { success, message, usuario, token, mustChangePassword } (formato nuevo)
+          const token = response.token || response.data?.token;
+          const usuario = response.usuario || response.data?.usuario;
+          
+          if (!token || !usuario) {
+            console.error('🔴 [AUTH SERVICE] Respuesta de login inválida:', response);
+            throw new Error('Respuesta de login inválida');
           }
           
-          this.tokenSubject.next(response.token);
-          this.currentUserSubject.next(response.usuario);
-          return response.usuario;
+          // Guardar token y usuario
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('token', token);
+            localStorage.setItem('currentUser', JSON.stringify(usuario));
+            console.log('🔵 [AUTH SERVICE] Token y usuario guardados en localStorage');
+          }
+          
+          this.tokenSubject.next(token);
+          this.currentUserSubject.next(usuario);
+          console.log('🔵 [AUTH SERVICE] Login exitoso para usuario:', usuario.email);
+          return usuario;
         }),
         catchError(error => {
-          console.error('Error en login:', error);
-          return throwError(() => new Error('Credenciales inválidas'));
+          console.error('🔴 [AUTH SERVICE] Error en login:', error);
+          console.error('🔴 [AUTH SERVICE] Error status:', error.status);
+          console.error('🔴 [AUTH SERVICE] Error body:', error.error);
+          
+          let errorMessage = 'Credenciales inválidas';
+          if (error.error?.message) {
+            errorMessage = error.error.message;
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
+          return throwError(() => new Error(errorMessage));
         })
       );
   }
 
   register(userData: RegisterRequest): Observable<Usuario> {
-    console.log('🔵 [FRONTEND] Enviando petición de registro:', userData);
-    console.log('🔵 [FRONTEND] URL:', `${this.API_URL}/auth/register`);
+    console.log('🔵 [AUTH SERVICE] Enviando petición de registro:', userData);
+    console.log('🔵 [AUTH SERVICE] URL:', `${this.API_URL}/auth/register`);
     
-    return this.http.post<AuthResponse>(`${this.API_URL}/auth/register`, userData)
+    return this.http.post<any>(`${this.API_URL}/auth/register`, userData)
       .pipe(
         map(response => {
+          console.log('🔵 [AUTH SERVICE] Respuesta del registro:', response);
+          
+          // El backend puede devolver dos formatos:
+          // 1. { token, usuario } (formato antiguo)
+          // 2. { success, message, usuario, token, mustChangePassword } (formato nuevo)
+          const token = response.token || response.data?.token;
+          const usuario = response.usuario || response.data?.usuario;
+          
           // ✅ CRÍTICO: Validar que response no sea null
-          if (!response || !response.token || !response.usuario) {
+          if (!token || !usuario) {
+            console.error('🔴 [AUTH SERVICE] Respuesta de registro inválida:', response);
             throw new Error('Respuesta de registro incompleta o inválida.');
           }
           
           // Guardar token y usuario
           if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('currentUser', JSON.stringify(response.usuario));
+            localStorage.setItem('token', token);
+            localStorage.setItem('currentUser', JSON.stringify(usuario));
+            console.log('🔵 [AUTH SERVICE] Token y usuario guardados en localStorage');
           }
           
-          this.tokenSubject.next(response.token);
-          this.currentUserSubject.next(response.usuario);
-          return response.usuario;
+          this.tokenSubject.next(token);
+          this.currentUserSubject.next(usuario);
+          console.log('🔵 [AUTH SERVICE] Registro exitoso para usuario:', usuario.email);
+          return usuario;
         }),
         catchError(error => {
-          console.error('Error en registro:', error);
+          console.error('🔴 [AUTH SERVICE] Error en registro:', error);
+          console.error('🔴 [AUTH SERVICE] Error status:', error.status);
+          console.error('🔴 [AUTH SERVICE] Error body:', error.error);
+          
           let errorMessage = 'Error al registrar usuario';
           
-          if (error.error && error.error.message) {
+          if (error.error?.message) {
             errorMessage = error.error.message;
           } else if (error.status === 400) {
             errorMessage = 'Datos inválidos. Verifica que el email y CUIT no estén registrados.';
@@ -197,10 +250,15 @@ export class AuthService {
 
   getAuthHeaders(): HttpHeaders {
     const token = this.getToken();
-    return new HttpHeaders({
-      'Authorization': token ? `Bearer ${token}` : '',
+    const headers: { [key: string]: string } = {
       'Content-Type': 'application/json'
-    });
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return new HttpHeaders(headers);
   }
 
   // Método para cambiar el rol del usuario
@@ -261,11 +319,27 @@ export class AuthService {
 
   // Obtener todos los usuarios (solo para administradores)
   getUsuarios(): Observable<Usuario[]> {
+    const token = this.getToken();
+    if (!token) {
+      console.error('🔴 [AUTH SERVICE] No hay token disponible para obtener usuarios');
+      return throwError(() => new Error('No hay token de autenticación. Por favor, inicia sesión nuevamente.'));
+    }
+    
+    console.log('🔵 [AUTH SERVICE] Obteniendo usuarios con token:', token.substring(0, 20) + '...');
     return this.http.get<Usuario[]>(`${this.API_URL}/usuarios`, { headers: this.getAuthHeaders() })
       .pipe(
         catchError(error => {
-          console.error('Error al obtener usuarios:', error);
-          return throwError(() => new Error('Error al cargar usuarios'));
+          console.error('🔴 [AUTH SERVICE] Error al obtener usuarios:', error);
+          console.error('🔴 [AUTH SERVICE] Status:', error.status);
+          console.error('🔴 [AUTH SERVICE] StatusText:', error.statusText);
+          console.error('🔴 [AUTH SERVICE] Error message:', error.message);
+          console.error('🔴 [AUTH SERVICE] Error body:', error.error);
+          
+          if (error.status === 401 || error.status === 403) {
+            return throwError(() => new Error('No tienes permisos para acceder a la lista de usuarios. Por favor, inicia sesión nuevamente.'));
+          }
+          
+          return throwError(() => new Error(error.error?.message || error.message || 'Error al cargar usuarios'));
         })
       );
   }

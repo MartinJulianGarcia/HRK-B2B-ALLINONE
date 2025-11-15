@@ -99,6 +99,14 @@ export class EditProductPageComponent implements OnInit {
   variantesConPedidos: any[] = [];
   datosPendientes: any = null;
   
+  // Para modal de eliminación
+  showDeleteModal = false;
+  
+  // Para modal de mensajes
+  mostrarModal = false;
+  modalMensaje = '';
+  modalEsExito = false;
+  
   // Para edición inline
   editingName = false;
   editingDescription = false;
@@ -276,41 +284,70 @@ export class EditProductPageComponent implements OnInit {
     this.productsService.updateProduct(this.productId, datosEnvio, false).subscribe({
       next: (response) => {
         this.loading = false;
-        this.success = 'Producto actualizado exitosamente';
-        console.log('✅ [EDIT PRODUCT] Producto actualizado:', response);
-        console.log('✅ [EDIT PRODUCT] Producto oculto en respuesta:', response.oculto);
+        console.log('✅ [EDIT PRODUCT] Respuesta recibida:', response);
         
-        setTimeout(() => {
-          this.router.navigate(['/catalog']);
-        }, 2000);
+        // ⭐ NUEVA LÓGICA: Verificar si solo se agregaron variantes
+        if (response && (response as any).soloAgregarVariantes === true) {
+          const respuesta = response as any;
+          const variantesNuevas = respuesta.variantesNuevas || [];
+          const mensaje = respuesta.mensaje || `Se agregaron ${variantesNuevas.length} nueva(s) variante(s) con stock 0.`;
+          
+          console.log('✅ [EDIT PRODUCT] Solo se agregaron variantes:', variantesNuevas);
+          console.log('✅ [EDIT PRODUCT] Mensaje:', mensaje);
+          
+          // Mostrar mensaje de aviso con información sobre las variantes nuevas
+          if (variantesNuevas.length > 0) {
+            const detallesVariantes = variantesNuevas.map((v: any) => 
+              `• ${v.color} - ${v.talle} (Stock: ${v.stock || 0})`
+            ).join('\n');
+            
+            const mensajeCompleto = `✅ Se agregaron ${variantesNuevas.length} nueva(s) variante(s) con stock 0.\n\nVariantes agregadas:\n${detallesVariantes}\n\n⚠️ Puedes actualizar el stock desde la grilla de stock arriba.`;
+            
+            this.abrirModal(mensajeCompleto, true);
+          } else {
+            this.abrirModal(mensaje, true);
+          }
+          
+          // Recargar el producto para actualizar la grilla con las nuevas variantes
+          this.loadProduct();
+        } else {
+          // Comportamiento normal: producto actualizado exitosamente
+          this.success = 'Producto actualizado exitosamente';
+          console.log('✅ [EDIT PRODUCT] Producto actualizado:', response);
+          console.log('✅ [EDIT PRODUCT] Producto oculto en respuesta:', (response as any).oculto);
+          
+          setTimeout(() => {
+            this.router.navigate(['/catalog']);
+          }, 2000);
+        }
       },
-              error: (error) => {
-                this.loading = false;
-                console.error('🔴 [FRONTEND] Error al actualizar producto:', error);
-                console.error('🔴 [FRONTEND] Error status:', error.status);
-                console.error('🔴 [FRONTEND] Error message:', error.message);
-                console.error('🔴 [FRONTEND] Error body:', error.error);
+      error: (error) => {
+        this.loading = false;
+        console.error('🔴 [FRONTEND] Error al actualizar producto:', error);
+        console.error('🔴 [FRONTEND] Error status:', error.status);
+        console.error('🔴 [FRONTEND] Error message:', error.message);
+        console.error('🔴 [FRONTEND] Error body:', error.error);
 
-                // Si el error es 409 (Conflict) significa que hay variantes con pedidos
-                if (error.status === 409 && error.error?.requiereConfirmacion) {
-                  console.log('🟡 [FRONTEND] Variantes con pedidos detectadas, mostrando diálogo de confirmación');
-                  this.variantesConPedidos = error.error?.verificacion?.variantesConPedidos || [];
-                  this.datosPendientes = datosEnvio;
-                  this.showConfirmDialog = true;
-                  return;
-                }
+        // Si el error es 409 (Conflict) significa que hay variantes con pedidos
+        if (error.status === 409 && error.error?.requiereConfirmacion) {
+          console.log('🟡 [FRONTEND] Variantes con pedidos detectadas, mostrando diálogo de confirmación');
+          this.variantesConPedidos = error.error?.verificacion?.variantesConPedidos || [];
+          this.datosPendientes = datosEnvio;
+          this.showConfirmDialog = true;
+          return;
+        }
 
-                let errorMessage = 'Error al actualizar el producto. Inténtalo de nuevo.';
-                if (error.status === 400) {
-                  errorMessage = 'Error 400: Datos inválidos. Revisa que todos los campos estén completos.';
-                } else if (error.status === 500) {
-                  // Mostrar el mensaje del servidor si está disponible
-                  const serverMessage = error.error?.error || error.message;
-                  errorMessage = `Error del servidor: ${serverMessage}`;
-                  console.error('🔴 [FRONTEND] Mensaje del servidor:', serverMessage);
-                }
-                this.error = errorMessage;
-              }
+        let errorMessage = 'Error al actualizar el producto. Inténtalo de nuevo.';
+        if (error.status === 400) {
+          errorMessage = 'Error 400: Datos inválidos. Revisa que todos los campos estén completos.';
+        } else if (error.status === 500) {
+          // Mostrar el mensaje del servidor si está disponible
+          const serverMessage = error.error?.error || error.message;
+          errorMessage = `Error del servidor: ${serverMessage}`;
+          console.error('🔴 [FRONTEND] Mensaje del servidor:', serverMessage);
+        }
+        this.error = errorMessage;
+      }
     });
   }
 
@@ -684,6 +721,26 @@ export class EditProductPageComponent implements OnInit {
       this.variantesStock[index].stock = this.variantesStock[index].stock - 1;
       this.cdr.detectChanges();
     }
+  }
+
+  intentarEliminarProducto(): void {
+    this.showDeleteModal = true;
+  }
+
+  cerrarModalEliminar(): void {
+    this.showDeleteModal = false;
+  }
+
+  abrirModal(mensaje: string, esExito: boolean = false): void {
+    this.modalMensaje = mensaje;
+    this.modalEsExito = esExito;
+    this.mostrarModal = true;
+  }
+
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.modalMensaje = '';
+    this.modalEsExito = false;
   }
 }
 

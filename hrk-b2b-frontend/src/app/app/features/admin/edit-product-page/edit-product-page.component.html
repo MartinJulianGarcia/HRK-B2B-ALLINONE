@@ -354,6 +354,17 @@
               </div>
             </div>
           </form>
+          
+          <!-- Botón eliminar artículo -->
+          <div class="delete-product-section">
+            <button 
+              type="button" 
+              class="btn btn-delete"
+              (click)="intentarEliminarProducto()"
+            >
+              Eliminar Artículo
+            </button>
+          </div>
         </div>
       </div>
 
@@ -410,6 +421,26 @@
     </div>
   </div>
 
+  <!-- Modal de eliminación -->
+  <div *ngIf="showDeleteModal" class="confirm-dialog-overlay" (click)="cerrarModalEliminar()">
+    <div class="confirm-dialog" (click)="$event.stopPropagation()">
+      <div class="confirm-header">
+        <h3>⚠️ No se puede eliminar</h3>
+        <button class="close-btn" (click)="cerrarModalEliminar()">×</button>
+      </div>
+      <div class="confirm-content">
+        <p class="warning-message">
+          No se puede eliminar un articulo con pedidos
+        </p>
+      </div>
+      <div class="confirm-actions">
+        <button class="btn btn-primary" (click)="cerrarModalEliminar()">
+          Aceptar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de búsqueda -->
   <div *ngIf="showSearchModal" class="search-modal-overlay" (click)="closeSearchModal()">
     <div class="search-modal" (click)="$event.stopPropagation()">
@@ -441,6 +472,15 @@
       <div class="no-results" *ngIf="searchTerm && searchResults.length === 0">
         <p>No se encontraron resultados para "{{ searchTerm }}"</p>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal de mensajes -->
+  <div class="modal-overlay" *ngIf="mostrarModal" (click)="cerrarModal()">
+    <div class="modal-dialog" [class.success]="modalEsExito" (click)="$event.stopPropagation()">
+      <h3>{{ modalEsExito ? 'Operación exitosa' : 'Aviso' }}</h3>
+      <pre class="modal-message">{{ modalMensaje }}</pre>
+      <button type="button" class="btn-secondary" (click)="cerrarModal()">Aceptar</button>
     </div>
   </div>
 </div>

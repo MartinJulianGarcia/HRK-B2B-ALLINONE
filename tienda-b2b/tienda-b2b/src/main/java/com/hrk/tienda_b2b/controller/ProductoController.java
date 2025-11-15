@@ -1,5 +1,6 @@
 package com.hrk.tienda_b2b.controller;
 
+import com.hrk.tienda_b2b.dto.ActualizacionProductoResponse;
 import com.hrk.tienda_b2b.dto.CreateProductoRequest;
 import com.hrk.tienda_b2b.dto.ProductoResponseDTO;
 import com.hrk.tienda_b2b.dto.VerificacionActualizacionProductoResponse;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -224,6 +226,27 @@ public class ProductoController {
             System.out.println("🔵 [CONTROLLER] Confirmar variantes con pedidos: " + confirmarVariantesConPedidos);
             System.out.println("=================================================");
             
+            // ⭐ NUEVA LÓGICA: Verificar si solo se están agregando variantes
+            boolean tieneColoresYTalles = request.getColores() != null && !request.getColores().isEmpty() &&
+                                          request.getTalles() != null && !request.getTalles().isEmpty() &&
+                                          request.getPrecio() != null && request.getPrecio() > 0;
+            
+            boolean soloAgregar = false;
+            List<ActualizacionProductoResponse.VarianteNuevaInfo> variantesNuevas = new ArrayList<>();
+            
+            if (tieneColoresYTalles) {
+                // Usar el método del servicio para detectar si solo se agregan variantes
+                soloAgregar = productoService.soloSeAgreganVariantesPublico(id, request.getColores(), request.getTalles());
+                
+                // Obtener información sobre variantes nuevas antes de actualizar
+                if (soloAgregar) {
+                    variantesNuevas = productoService.obtenerVariantesNuevasPublico(id, request);
+                }
+                
+                System.out.println("🔵 [CONTROLLER] ¿Solo se agregan variantes? " + soloAgregar);
+                System.out.println("🔵 [CONTROLLER] Variantes nuevas a agregar: " + variantesNuevas.size());
+            }
+            
             // Llamar al servicio para actualizar el producto
             Producto actualizado = productoService.actualizarProducto(id, request, confirmarVariantesConPedidos);
             System.out.println("✅ [CONTROLLER] Producto actualizado exitosamente con ID: " + actualizado.getId());
@@ -233,6 +256,20 @@ public class ProductoController {
             // Convertir a DTO para evitar referencia circular
             ProductoResponseDTO responseDTO = convertirADTO(actualizado);
             System.out.println("✅ [CONTROLLER] DTO oculto: " + responseDTO.getOculto());
+            
+            // Si solo se agregaron variantes, incluir información sobre ellas en la respuesta
+            if (soloAgregar && !variantesNuevas.isEmpty()) {
+                Map<String, Object> respuesta = new HashMap<>();
+                respuesta.put("producto", responseDTO);
+                respuesta.put("soloAgregarVariantes", true);
+                respuesta.put("variantesNuevas", variantesNuevas);
+                respuesta.put("cantidadVariantesNuevas", variantesNuevas.size());
+                respuesta.put("mensaje", "Se agregaron " + variantesNuevas.size() + " nueva(s) variante(s) con stock 0. Puedes actualizar el stock desde la grilla de stock.");
+                
+                System.out.println("✅ [CONTROLLER] Respuesta con información de variantes nuevas: " + variantesNuevas.size() + " variantes");
+                
+                return ResponseEntity.ok(respuesta);
+            }
             
             return ResponseEntity.ok(responseDTO);
             
@@ -272,7 +309,21 @@ public class ProductoController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarProducto(@PathVariable Long id) {
-        productoService.eliminar(id);
-        return ResponseEntity.noContent().build();
+        try {
+            System.out.println("🔵 [CONTROLLER] Eliminando producto con ID: " + id);
+            productoService.eliminar(id);
+            System.out.println("✅ [CONTROLLER] Producto eliminado exitosamente");
+            return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            System.out.println("🔴 [CONTROLLER] Error al eliminar producto: " + e.getMessage());
+            return ResponseEntity.badRequest().body(crearRespuestaError(e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            System.out.println("🔴 [CONTROLLER] Producto no encontrado: " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            System.out.println("🔴 [CONTROLLER] Error inesperado al eliminar producto: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(crearRespuestaError("Error interno del servidor: " + e.getMessage()));
+        }
     }
 }

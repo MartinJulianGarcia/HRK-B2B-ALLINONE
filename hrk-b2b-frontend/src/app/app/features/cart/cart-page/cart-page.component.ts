@@ -548,6 +548,15 @@ export class CartPageComponent implements OnInit {
       this.loadingUsers = true;
       console.log('🔵 [CART] Cargando usuarios desde la base de datos');
       
+      // Verificar si hay token antes de hacer la petición
+      const token = this.authService.getToken();
+      if (!token) {
+        console.error('🔴 [CART] No hay token disponible');
+        this.loadingUsers = false;
+        this.abrirModal('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+        return;
+      }
+      
       this.authService.getUsuarios().subscribe({
         next: (usuarios) => {
           // Incluir tanto CLIENTES como ADMINISTRADORES (para que los admins puedan comprar para otros)
@@ -559,8 +568,12 @@ export class CartPageComponent implements OnInit {
         },
         error: (error) => {
           console.error('🔴 [CART] Error al cargar usuarios:', error);
+          console.error('🔴 [CART] Error message:', error.message);
+          console.error('🔴 [CART] Error status:', error.status);
           this.loadingUsers = false;
-          this.abrirModal('Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.');
+          
+          const errorMessage = error.message || 'Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.';
+          this.abrirModal(errorMessage);
         }
       });
     }

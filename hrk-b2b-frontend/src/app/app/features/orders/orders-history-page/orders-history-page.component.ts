@@ -451,6 +451,15 @@ export class OrdersHistoryPageComponent implements OnInit {
     this.loadingUsers = true;
     console.log('🔵 [ORDERS HISTORY] Cargando usuarios desde la base de datos');
     
+    // Verificar si hay token antes de hacer la petición
+    const token = this.authService.getToken();
+    if (!token) {
+      console.error('🔴 [ORDERS HISTORY] No hay token disponible');
+      this.loadingUsers = false;
+      alert('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+      return;
+    }
+    
     this.authService.getUsuarios().subscribe({
       next: (usuarios) => {
         // Incluir tanto CLIENTES como ADMINISTRADORES (para que los admins puedan ver su propio historial)
@@ -462,8 +471,12 @@ export class OrdersHistoryPageComponent implements OnInit {
       },
       error: (error) => {
         console.error('🔴 [ORDERS HISTORY] Error al cargar usuarios:', error);
+        console.error('🔴 [ORDERS HISTORY] Error message:', error.message);
+        console.error('🔴 [ORDERS HISTORY] Error status:', error.status);
         this.loadingUsers = false;
-        alert('Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.');
+        
+        const errorMessage = error.message || 'Error al cargar la lista de usuarios. Por favor, inténtalo de nuevo.';
+        alert(errorMessage);
       }
     });
   }

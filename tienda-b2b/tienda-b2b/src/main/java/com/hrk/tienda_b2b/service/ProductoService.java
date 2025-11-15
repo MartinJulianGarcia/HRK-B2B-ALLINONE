@@ -1,5 +1,6 @@
 package com.hrk.tienda_b2b.service;
 
+import com.hrk.tienda_b2b.dto.ActualizacionProductoResponse;
 import com.hrk.tienda_b2b.dto.CreateProductoRequest;
 import com.hrk.tienda_b2b.dto.VerificacionActualizacionProductoResponse;
 import com.hrk.tienda_b2b.model.Categoria;
@@ -21,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -83,8 +86,35 @@ public class ProductoService {
         return productoRepository.save(producto);
     }
 
+    @Transactional
     public void eliminar(Long id) {
+        System.out.println("🔵 [SERVICE] Intentando eliminar producto con ID: " + id);
+        
+        // 1. Verificar que el producto existe
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado con ID: " + id));
+        
+        System.out.println("🔵 [SERVICE] Producto encontrado: " + producto.getNombre());
+        
+        // 2. Forzar la carga de las variantes para evitar problemas de lazy loading
+        if (producto.getVariantes() != null) {
+            producto.getVariantes().size(); // Esto fuerza la carga en JPA
+        }
+        
+        System.out.println("🔵 [SERVICE] Variantes del producto: " + (producto.getVariantes() != null ? producto.getVariantes().size() : 0));
+        
+        // 3. Verificar si alguna variante tiene pedidos asociados
+        List<Long> variantesConPedidos = verificarVariantesConPedidos(id);
+        
+        if (!variantesConPedidos.isEmpty()) {
+            System.out.println("🔴 [SERVICE] No se puede eliminar el producto: tiene " + variantesConPedidos.size() + " variante(s) con pedidos asociados");
+            throw new IllegalStateException("No se puede eliminar un artículo con pedidos. El producto tiene " + variantesConPedidos.size() + " variante(s) con pedidos asociados.");
+        }
+        
+        // 4. Si no tiene pedidos, eliminar el producto (las variantes se eliminarán por cascade)
+        System.out.println("✅ [SERVICE] El producto no tiene pedidos asociados. Eliminando producto y sus variantes...");
         productoRepository.deleteById(id);
+        System.out.println("✅ [SERVICE] Producto eliminado exitosamente");
     }
 
     @Transactional
@@ -266,6 +296,186 @@ public class ProductoService {
     }
 
     /**
+     * Detecta si solo se están agregando variantes (no eliminando ninguna existente)
+     * @param producto Producto existente
+     * @param coloresNuevos Lista de colores del request
+     * @param tallesNuevos Lista de talles del request
+     * @return true si solo se agregan variantes, false si se eliminan algunas
+     */
+    private boolean soloSeAgreganVariantes(Producto producto, List<String> coloresNuevos, List<String> tallesNuevos) {
+        if (producto.getVariantes() == null || producto.getVariantes().isEmpty()) {
+            // Si no hay variantes existentes, solo se están agregando
+            return true;
+        }
+        
+        // Obtener todas las combinaciones color-talle existentes
+        Set<String> combinacionesExistentes = new HashSet<>();
+        for (ProductoVariante variante : producto.getVariantes()) {
+            String clave = variante.getColor() + "-" + variante.getTalle();
+            combinacionesExistentes.add(clave);
+        }
+        
+        System.out.println("🔵 [SERVICE] Combinaciones existentes: " + combinacionesExistentes);
+        
+        // Obtener todas las combinaciones color-talle del request
+        Set<String> combinacionesNuevas = new HashSet<>();
+        for (String color : coloresNuevos) {
+            for (String talleOriginal : tallesNuevos) {
+                String[] tallesIndividuales;
+                if (talleOriginal.contains("/")) {
+                    tallesIndividuales = talleOriginal.split("/");
+                } else {
+                    tallesIndividuales = new String[]{talleOriginal};
+                }
+                
+                for (String talleIndividual : tallesIndividuales) {
+                    String talleLimpio = talleIndividual.trim();
+                    if (talleLimpio.toUpperCase().matches("U|TU|UNICO")) {
+                        talleLimpio = "U";
+                    }
+                    String clave = color + "-" + talleLimpio;
+                    combinacionesNuevas.add(clave);
+                }
+            }
+        }
+        
+        System.out.println("🔵 [SERVICE] Combinaciones nuevas: " + combinacionesNuevas);
+        
+        // Si todas las combinaciones existentes están en las nuevas, solo se están agregando
+        boolean soloAgregar = combinacionesNuevas.containsAll(combinacionesExistentes);
+        System.out.println("🔵 [SERVICE] ¿Solo se agregan variantes? " + soloAgregar);
+        
+        return soloAgregar;
+    }
+    
+    /**
+     * Obtiene información sobre las variantes nuevas que se agregarán
+     * @param producto Producto existente
+     * @param coloresNuevos Lista de colores del request
+     * @param tallesNuevos Lista de talles del request
+     * @param skuBase SKU base del producto
+     * @param stockPorVariante Mapa de stock por variante del request
+     * @return Lista de información sobre variantes nuevas
+     */
+    private List<ActualizacionProductoResponse.VarianteNuevaInfo> obtenerVariantesNuevas(
+            Producto producto, List<String> coloresNuevos, List<String> tallesNuevos, 
+            String skuBase, Map<String, Integer> stockPorVariante) {
+        
+        List<ActualizacionProductoResponse.VarianteNuevaInfo> variantesNuevas = new ArrayList<>();
+        
+        // Obtener combinaciones existentes
+        Set<String> combinacionesExistentes = new HashSet<>();
+        if (producto.getVariantes() != null) {
+            for (ProductoVariante variante : producto.getVariantes()) {
+                String clave = variante.getColor() + "-" + variante.getTalle();
+                combinacionesExistentes.add(clave);
+            }
+        }
+        
+        // Obtener combinaciones nuevas
+        boolean usarStockIndividual = stockPorVariante != null && !stockPorVariante.isEmpty();
+        
+        for (String color : coloresNuevos) {
+            for (String talleOriginal : tallesNuevos) {
+                String[] tallesIndividuales;
+                if (talleOriginal.contains("/")) {
+                    tallesIndividuales = talleOriginal.split("/");
+                } else {
+                    tallesIndividuales = new String[]{talleOriginal};
+                }
+                
+                for (String talleIndividual : tallesIndividuales) {
+                    String talleLimpio = talleIndividual.trim();
+                    if (talleLimpio.toUpperCase().matches("U|TU|UNICO")) {
+                        talleLimpio = "U";
+                    }
+                    
+                    String claveVariante = color + "-" + talleLimpio;
+                    
+                    // Solo agregar si no existe
+                    if (!combinacionesExistentes.contains(claveVariante)) {
+                        String skuVariante = generarSku(skuBase, color, talleLimpio);
+                        Integer stockIndividual = 0;
+                        
+                        if (usarStockIndividual && stockPorVariante.containsKey(claveVariante)) {
+                            stockIndividual = stockPorVariante.get(claveVariante);
+                        }
+                        // Si no hay stock, se crea con stock 0
+                        
+                        ActualizacionProductoResponse.VarianteNuevaInfo info = 
+                            ActualizacionProductoResponse.VarianteNuevaInfo.builder()
+                                .sku(skuVariante)
+                                .color(color)
+                                .talle(talleLimpio)
+                                .stock(stockIndividual)
+                                .build();
+                        
+                        variantesNuevas.add(info);
+                    }
+                }
+            }
+        }
+        
+        return variantesNuevas;
+    }
+    
+    /**
+     * Detecta si solo se están agregando variantes (método público para el controller)
+     * @param productoId ID del producto
+     * @param coloresNuevos Lista de colores del request
+     * @param tallesNuevos Lista de talles del request
+     * @return true si solo se agregan variantes, false si se eliminan algunas
+     */
+    public boolean soloSeAgreganVariantesPublico(Long productoId, List<String> coloresNuevos, List<String> tallesNuevos) {
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado con ID: " + productoId));
+        
+        // Forzar la carga de las variantes
+        if (producto.getVariantes() != null) {
+            producto.getVariantes().size();
+        }
+        
+        return soloSeAgreganVariantes(producto, coloresNuevos, tallesNuevos);
+    }
+    
+    /**
+     * Obtiene información sobre las variantes nuevas que se agregarán (método público para el controller)
+     * @param productoId ID del producto
+     * @param request Request con colores, talles y stock
+     * @return Información sobre variantes nuevas que se agregarán
+     */
+    public List<ActualizacionProductoResponse.VarianteNuevaInfo> obtenerVariantesNuevasPublico(
+            Long productoId, CreateProductoRequest request) {
+        
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado con ID: " + productoId));
+        
+        // Forzar la carga de las variantes
+        if (producto.getVariantes() != null) {
+            producto.getVariantes().size();
+        }
+        
+        // Obtener SKU base
+        String skuBase = request.getSku();
+        if (skuBase == null || skuBase.trim().isEmpty()) {
+            if (!producto.getVariantes().isEmpty()) {
+                String primerSku = producto.getVariantes().get(0).getSku();
+                String[] partes = primerSku.split("-");
+                if (partes.length > 0) {
+                    skuBase = partes[0];
+                } else {
+                    skuBase = "SKU-" + producto.getId();
+                }
+            } else {
+                skuBase = "SKU-" + producto.getId();
+            }
+        }
+        
+        return obtenerVariantesNuevas(producto, request.getColores(), request.getTalles(), 
+                skuBase, request.getStockPorVariante());
+    }
+    
+    /**
      * Verifica y devuelve información detallada sobre variantes con pedidos
      * @param productoId ID del producto
      * @return Información sobre variantes con pedidos asociados
@@ -379,133 +589,205 @@ public class ProductoService {
                 }
             }
             
-            // ⭐ NUEVA LÓGICA: No eliminar variantes con pedidos, solo poner stock en 0
-            // Verificar qué variantes tienen pedidos antes de modificar
-            List<Long> variantesConPedidos = verificarVariantesConPedidos(id);
+            // ⭐ NUEVA LÓGICA: Detectar si solo se están agregando variantes
+            boolean soloAgregar = soloSeAgreganVariantes(producto, request.getColores(), request.getTalles());
             
-            if (!variantesConPedidos.isEmpty() && !confirmarVariantesConPedidos) {
-                throw new IllegalStateException("El producto tiene variantes con pedidos asociados. Se requiere confirmación para continuar.");
-            }
-            
-            System.out.println("🔵 [SERVICE] Procesando variantes existentes...");
-            
-            // Separar variantes: las que tienen pedidos vs las que no
-            List<ProductoVariante> variantesAMantener = new ArrayList<>();
-            List<ProductoVariante> variantesAEliminar = new ArrayList<>();
-            
-            for (ProductoVariante variante : producto.getVariantes()) {
-                if (detallePedidoRepository.existsByVarianteId(variante.getId())) {
-                    // Variantes con pedidos: poner stock en 0, no eliminar
-                    Integer stockAnterior = variante.getStockDisponible();
-                    
-                    if (stockAnterior > 0) {
-                        // Registrar movimiento de ajuste negativo si había stock
-                        MovimientoStock movimiento = MovimientoStock.builder()
-                                .variante(variante)
-                                .tipo(TipoMovimiento.AJUSTE_INVENTARIO_NEGATIVO)
-                                .cantidad(stockAnterior)
-                                .fecha(LocalDateTime.now())
-                                .build();
-                        movimientoStockRepository.save(movimiento);
-                        System.out.println("🔵 [SERVICE] Movimiento registrado: stock de " + variante.getSku() + " será puesto en 0");
-                    }
-                    
-                    variante.setStockDisponible(0);
-                    variantesAMantener.add(variante);
-                    System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " mantenida (tiene pedidos), stock puesto en 0");
-                } else {
-                    // Variante sin pedidos: se puede eliminar
-                    variantesAEliminar.add(variante);
-                    System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " será eliminada (no tiene pedidos)");
+            if (soloAgregar) {
+                // ⭐ MODO "SOLO AGREGAR": No eliminar variantes existentes, solo crear las nuevas
+                System.out.println("✅ [SERVICE] MODO SOLO AGREGAR: No se eliminarán variantes existentes");
+                
+                // Obtener combinaciones existentes para evitar duplicados
+                Set<String> combinacionesExistentes = new HashSet<>();
+                for (ProductoVariante variante : producto.getVariantes()) {
+                    String clave = variante.getColor() + "-" + variante.getTalle();
+                    combinacionesExistentes.add(clave);
                 }
-            }
-            
-            // Eliminar solo las variantes que no tienen pedidos
-            if (!variantesAEliminar.isEmpty()) {
-                for (ProductoVariante variante : variantesAEliminar) {
-                    productoVarianteRepository.delete(variante);
-                }
-                productoVarianteRepository.flush();
-                System.out.println("🔵 [SERVICE] " + variantesAEliminar.size() + " variantes eliminadas (sin pedidos)");
-            }
-            
-            // Limpiar la lista en memoria y agregar las que mantenemos
-            producto.getVariantes().clear();
-            producto.getVariantes().addAll(variantesAMantener);
-            
-            System.out.println("🔵 [SERVICE] " + variantesAMantener.size() + " variantes mantenidas (con pedidos, stock=0)");
-            System.out.println("🔵 [SERVICE] Ahora crear nuevas variantes");
-            
-            // Crear nuevas variantes
-            boolean usarStockIndividual = request.getStockPorVariante() != null && !request.getStockPorVariante().isEmpty();
-            
-            for (String color : request.getColores()) {
-                for (String talleOriginal : request.getTalles()) {
-                    String[] tallesIndividuales;
-                    if (talleOriginal.contains("/")) {
-                        tallesIndividuales = talleOriginal.split("/");
-                    } else {
-                        tallesIndividuales = new String[]{talleOriginal};
-                    }
-                    
-                    for (String talleIndividual : tallesIndividuales) {
-                        String talleLimpio = talleIndividual.trim();
-                        if (talleLimpio.toUpperCase().matches("U|TU|UNICO")) {
-                            talleLimpio = "U";
+                
+                // Crear solo las variantes nuevas (que no existen)
+                boolean usarStockIndividual = request.getStockPorVariante() != null && !request.getStockPorVariante().isEmpty();
+                
+                for (String color : request.getColores()) {
+                    for (String talleOriginal : request.getTalles()) {
+                        String[] tallesIndividuales;
+                        if (talleOriginal.contains("/")) {
+                            tallesIndividuales = talleOriginal.split("/");
+                        } else {
+                            tallesIndividuales = new String[]{talleOriginal};
                         }
                         
-                        String skuVariante = generarSku(skuBase, color, talleLimpio);
-                        
-                        String claveVariante = color + "-" + talleLimpio;
-                        Integer stockIndividual = 0;
-                        
-                        if (usarStockIndividual && request.getStockPorVariante().containsKey(claveVariante)) {
-                            stockIndividual = request.getStockPorVariante().get(claveVariante);
-                        } else if (request.getStock() != null && request.getStock() > 0) {
-                            // Distribución igualitaria como fallback
-                            int totalTalles = 0;
-                            for (String talleItem : request.getTalles()) {
-                                if (talleItem.contains("/")) {
-                                    totalTalles += talleItem.split("/").length;
-                                } else {
-                                    totalTalles += 1;
-                                }
+                        for (String talleIndividual : tallesIndividuales) {
+                            String talleLimpio = talleIndividual.trim();
+                            if (talleLimpio.toUpperCase().matches("U|TU|UNICO")) {
+                                talleLimpio = "U";
                             }
-                            int totalVariantes = request.getColores().size() * totalTalles;
-                            stockIndividual = request.getStock() / totalVariantes;
+                            
+                            String claveVariante = color + "-" + talleLimpio;
+                            
+                            // Solo crear si no existe
+                            if (!combinacionesExistentes.contains(claveVariante)) {
+                                String skuVariante = generarSku(skuBase, color, talleLimpio);
+                                Integer stockIndividual = 0;
+                                
+                                if (usarStockIndividual && request.getStockPorVariante().containsKey(claveVariante)) {
+                                    stockIndividual = request.getStockPorVariante().get(claveVariante);
+                                }
+                                // Si no hay stock en stockPorVariante, se crea con stock 0
+                                
+                                ProductoVariante variante = ProductoVariante.builder()
+                                    .producto(producto)
+                                    .sku(skuVariante)
+                                    .color(color)
+                                    .talle(talleLimpio)
+                                    .precio(request.getPrecio())
+                                    .stockDisponible(stockIndividual)
+                                    .build();
+                                
+                                producto.getVariantes().add(variante);
+                                System.out.println("✅ [SERVICE] Nueva variante creada: " + skuVariante + " (Color: " + color + ", Talle: " + talleLimpio + ", Stock: " + stockIndividual + ")");
+                            } else {
+                                System.out.println("🔵 [SERVICE] Variante ya existe, no se crea: " + claveVariante);
+                            }
                         }
-                        
-                        // Nota: No verificamos duplicados aquí porque:
-                        // 1. Si el SKU pertenece al mismo producto, ya fue eliminado con flush()
-                        // 2. Si el SKU pertenece a otro producto, la base de datos lanzará una excepción
-                        // que será capturada por el @Transactional
-                        
-                        ProductoVariante variante = ProductoVariante.builder()
-                            .producto(producto)
-                            .sku(skuVariante)
-                            .color(color)
-                            .talle(talleLimpio)
-                            .precio(request.getPrecio())
-                            .stockDisponible(stockIndividual)
-                            .build();
-                        
-                        producto.getVariantes().add(variante);
-                        System.out.println("🔵 [SERVICE] Variante creada: " + skuVariante + " (Color: " + color + ", Talle: " + talleLimpio + ", Stock: " + stockIndividual + ")");
                     }
                 }
-            }
-            
-            // Guardar para tener los IDs antes de registrar stock histórico
-            producto = productoRepository.save(producto);
-            
-            // Registrar stock histórico inicial para las nuevas variantes
-            for (ProductoVariante variante : producto.getVariantes()) {
-                // Solo registrar si es una variante nueva (verificar por fecha de creación o por lógica)
-                // Por simplicidad, registramos si tiene stock > 0 y no tiene registros históricos previos
-                if (variante.getStockDisponible() > 0) {
-                    List<StockHistorico> historicos = stockHistoricoRepository.findByVarianteOrderByFechaAsc(variante);
-                    if (historicos.isEmpty()) {
-                        registrarStockHistoricoInicial(variante, variante.getStockDisponible());
+                
+                // Guardar el producto con las nuevas variantes
+                producto = productoRepository.save(producto);
+                
+                // Registrar stock histórico inicial para las nuevas variantes (solo si tienen stock > 0)
+                for (ProductoVariante variante : producto.getVariantes()) {
+                    if (variante.getStockDisponible() > 0) {
+                        List<StockHistorico> historicos = stockHistoricoRepository.findByVarianteOrderByFechaAsc(variante);
+                        if (historicos.isEmpty()) {
+                            registrarStockHistoricoInicial(variante, variante.getStockDisponible());
+                        }
+                    }
+                }
+                
+            } else {
+                // ⭐ MODO "ELIMINAR Y RECREAR": Comportamiento original con confirmación
+                System.out.println("⚠️ [SERVICE] MODO ELIMINAR Y RECREAR: Se eliminarán variantes existentes");
+                
+                // Verificar qué variantes tienen pedidos antes de modificar
+                List<Long> variantesConPedidos = verificarVariantesConPedidos(id);
+                
+                if (!variantesConPedidos.isEmpty() && !confirmarVariantesConPedidos) {
+                    throw new IllegalStateException("El producto tiene variantes con pedidos asociados. Se requiere confirmación para continuar.");
+                }
+                
+                System.out.println("🔵 [SERVICE] Procesando variantes existentes...");
+                
+                // Separar variantes: las que tienen pedidos vs las que no
+                List<ProductoVariante> variantesAMantener = new ArrayList<>();
+                List<ProductoVariante> variantesAEliminar = new ArrayList<>();
+                
+                for (ProductoVariante variante : producto.getVariantes()) {
+                    if (detallePedidoRepository.existsByVarianteId(variante.getId())) {
+                        // Variantes con pedidos: poner stock en 0, no eliminar
+                        Integer stockAnterior = variante.getStockDisponible();
+                        
+                        if (stockAnterior > 0) {
+                            // Registrar movimiento de ajuste negativo si había stock
+                            MovimientoStock movimiento = MovimientoStock.builder()
+                                    .variante(variante)
+                                    .tipo(TipoMovimiento.AJUSTE_INVENTARIO_NEGATIVO)
+                                    .cantidad(stockAnterior)
+                                    .fecha(LocalDateTime.now())
+                                    .build();
+                            movimientoStockRepository.save(movimiento);
+                            System.out.println("🔵 [SERVICE] Movimiento registrado: stock de " + variante.getSku() + " será puesto en 0");
+                        }
+                        
+                        variante.setStockDisponible(0);
+                        variantesAMantener.add(variante);
+                        System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " mantenida (tiene pedidos), stock puesto en 0");
+                    } else {
+                        // Variante sin pedidos: se puede eliminar
+                        variantesAEliminar.add(variante);
+                        System.out.println("🔵 [SERVICE] Variante " + variante.getSku() + " será eliminada (no tiene pedidos)");
+                    }
+                }
+                
+                // Eliminar solo las variantes que no tienen pedidos
+                if (!variantesAEliminar.isEmpty()) {
+                    for (ProductoVariante variante : variantesAEliminar) {
+                        productoVarianteRepository.delete(variante);
+                    }
+                    productoVarianteRepository.flush();
+                    System.out.println("🔵 [SERVICE] " + variantesAEliminar.size() + " variantes eliminadas (sin pedidos)");
+                }
+                
+                // Limpiar la lista en memoria y agregar las que mantenemos
+                producto.getVariantes().clear();
+                producto.getVariantes().addAll(variantesAMantener);
+                
+                System.out.println("🔵 [SERVICE] " + variantesAMantener.size() + " variantes mantenidas (con pedidos, stock=0)");
+                System.out.println("🔵 [SERVICE] Ahora crear nuevas variantes");
+                
+                // Crear nuevas variantes
+                boolean usarStockIndividual = request.getStockPorVariante() != null && !request.getStockPorVariante().isEmpty();
+                
+                for (String color : request.getColores()) {
+                    for (String talleOriginal : request.getTalles()) {
+                        String[] tallesIndividuales;
+                        if (talleOriginal.contains("/")) {
+                            tallesIndividuales = talleOriginal.split("/");
+                        } else {
+                            tallesIndividuales = new String[]{talleOriginal};
+                        }
+                        
+                        for (String talleIndividual : tallesIndividuales) {
+                            String talleLimpio = talleIndividual.trim();
+                            if (talleLimpio.toUpperCase().matches("U|TU|UNICO")) {
+                                talleLimpio = "U";
+                            }
+                            
+                            String skuVariante = generarSku(skuBase, color, talleLimpio);
+                            
+                            String claveVariante = color + "-" + talleLimpio;
+                            Integer stockIndividual = 0;
+                            
+                            if (usarStockIndividual && request.getStockPorVariante().containsKey(claveVariante)) {
+                                stockIndividual = request.getStockPorVariante().get(claveVariante);
+                            } else if (request.getStock() != null && request.getStock() > 0) {
+                                // Distribución igualitaria como fallback
+                                int totalTalles = 0;
+                                for (String talleItem : request.getTalles()) {
+                                    if (talleItem.contains("/")) {
+                                        totalTalles += talleItem.split("/").length;
+                                    } else {
+                                        totalTalles += 1;
+                                    }
+                                }
+                                int totalVariantes = request.getColores().size() * totalTalles;
+                                stockIndividual = request.getStock() / totalVariantes;
+                            }
+                            
+                            ProductoVariante variante = ProductoVariante.builder()
+                                .producto(producto)
+                                .sku(skuVariante)
+                                .color(color)
+                                .talle(talleLimpio)
+                                .precio(request.getPrecio())
+                                .stockDisponible(stockIndividual)
+                                .build();
+                            
+                            producto.getVariantes().add(variante);
+                            System.out.println("🔵 [SERVICE] Variante creada: " + skuVariante + " (Color: " + color + ", Talle: " + talleLimpio + ", Stock: " + stockIndividual + ")");
+                        }
+                    }
+                }
+                
+                // Guardar para tener los IDs antes de registrar stock histórico
+                producto = productoRepository.save(producto);
+                
+                // Registrar stock histórico inicial para las nuevas variantes
+                for (ProductoVariante variante : producto.getVariantes()) {
+                    if (variante.getStockDisponible() > 0) {
+                        List<StockHistorico> historicos = stockHistoricoRepository.findByVarianteOrderByFechaAsc(variante);
+                        if (historicos.isEmpty()) {
+                            registrarStockHistoricoInicial(variante, variante.getStockDisponible());
+                        }
                     }
                 }
             }
